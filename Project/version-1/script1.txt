@@ -1,5 +1,0 @@
-list
-create Budget_2019 5 10 Lisbon Room A Porto Room B
-join Budget_2019 
-close Budget_2019
-wait 4
