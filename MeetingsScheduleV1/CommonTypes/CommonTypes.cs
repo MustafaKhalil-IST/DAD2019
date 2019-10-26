@@ -123,7 +123,7 @@ namespace MeetingsSchedule
 
     public interface ServerInterface
     {
-        void execute(Command command);
+        int execute(Command command);
         void crash();
         void status();
         void unfreeze();
@@ -136,17 +136,6 @@ namespace MeetingsSchedule
         {
             if (instruction[0] == "create")
             {
-                int min_attendees = Int32.Parse(instruction[1]);
-                int n_slots = Int32.Parse(instruction[2]);
-
-                List<Slot> slots = new List<Slot>();
-                for (int i = 0; i < n_slots; i++) // i += 2
-                {
-                    Slot slot = new Slot();
-                    slot.Location = instruction[i + 3];
-                    slot.Date = DateTime.Parse(instruction[i + 4]);
-                    slots.Add(slot);
-                }
                 return new Command("CREATE");
             }
             else if (instruction[0] == "list")
@@ -162,6 +151,11 @@ namespace MeetingsSchedule
             else if (instruction[0] == "wait")
             {
                 return new Command("WAIT");
+            }
+
+            else if (instruction[0] == "close")
+            {
+                return new Command("CLOSE");
             }
 
             return new Command("NOT FOUND");

@@ -28,8 +28,10 @@ namespace MeetingsSchedule
     {
         Dictionary<string, ClientInterface> clients;
 
-        public void execute(Command command)
+        public int execute(Command command)
         {
+            Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
+            return 0;
         }
         public void crash()
         {
