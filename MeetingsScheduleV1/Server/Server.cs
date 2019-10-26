@@ -26,13 +26,48 @@ namespace MeetingsSchedule
 
     class ServerObject : MarshalByRefObject, ServerInterface
     {
-        Dictionary<string, ClientInterface> clients;
+        Dictionary<string, HashSet<MeetingProposal>> meetingsOfClients;
 
-        public int execute(Command command)
+        public int execute(CreateCommand command)
+        {
+            MeetingProposal proposal = new MeetingProposal();
+            proposal.Topic = command.getTopic();
+            proposal.Coordinator = command.getIssuerId();
+            proposal.MinAttendees = command.getMinAttendees();
+            Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
+            return 0;
+        }
+
+        public int execute(ListCommand command)
         {
             Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
             return 0;
         }
+
+        public int execute(CloseCommand command)
+        {
+            Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
+            return 0;
+        }
+
+        public int execute(JoinCommand command)
+        {
+            Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
+            return 0;
+        }
+
+        public int execute(WaitCommand command)
+        {
+            Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
+            return 0;
+        }
+
+        public int execute(NotFoundCommand command)
+        {
+            Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
+            return 0;
+        }
+
         public void crash()
         {
         }

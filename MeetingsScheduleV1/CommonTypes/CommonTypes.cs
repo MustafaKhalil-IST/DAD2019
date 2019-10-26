@@ -12,7 +12,7 @@ namespace MeetingsSchedule
         private string coordinator;
         private string topic;
         private int min_attendees;
-        private SortedSet<Slot> slots;
+        private List<Slot> slots;
         private SortedSet<string> invitees;
         private bool closed;
         private bool cancelled;
@@ -98,6 +98,12 @@ namespace MeetingsSchedule
         private string location;
         private DateTime date;
 
+        public Slot(string location, DateTime date)
+        {
+            this.location = location;
+            this.date = date;
+        }
+
         public string Location
         {
             get { return location; }
@@ -123,7 +129,12 @@ namespace MeetingsSchedule
 
     public interface ServerInterface
     {
-        int execute(Command command);
+        int execute(CreateCommand command);
+        int execute(ListCommand command);
+        int execute(JoinCommand command);
+        int execute(CloseCommand command);
+        int execute(WaitCommand command);
+        int execute(NotFoundCommand command);
         void crash();
         void status();
         void unfreeze();
@@ -132,45 +143,60 @@ namespace MeetingsSchedule
 
     public class InstructsParser
     {
-        public Command parse(string[] instruction)
+        public CreateCommand parseCreateCommand(string[] instruction)
         {
-            if (instruction[0] == "create")
+            string topic = instruction[1];
+            int min_attendees = Int32.Parse(instruction[2]);
+            int nr_slots = Int32.Parse(instruction[3]);
+            int nr_invitees = Int32.Parse(instruction[4]);
+
+            List<Slot> slots = new List<Slot>();
+
+            for(int i = 0; i < nr_slots; i++)
             {
-                return new Command("CREATE");
-            }
-            else if (instruction[0] == "list")
-            {
-                return new Command("LIST");
+                string slot_info = instruction[i + 5];
+                char[] delimiter = { ',' };
+                string[] slot_infos = slot_info.Split(delimiter, StringSplitOptions.RemoveEmptyEntries);
+                string location = slot_infos[0];
+                DateTime date = DateTime.Parse(slot_infos[1]);
+                slots.Add(new Slot(location, date));
             }
 
-            else if (instruction[0] == "join")
-            {
-                return new Command("JOIN");
-            }
+            return new CreateCommand(topic, min_attendees, nr_slots, nr_invitees, slots);
+        }
 
-            else if (instruction[0] == "wait")
-            {
-                return new Command("WAIT");
-            }
+        public ListCommand parseListCommand(string[] instruction)
+        {
+            return new ListCommand();
+        }
 
-            else if (instruction[0] == "close")
-            {
-                return new Command("CLOSE");
-            }
+        public JoinCommand parseJoinCommand(string[] instruction)
+        {
+            string topic = instruction[1];
+            return new JoinCommand(topic);
+        }
 
-            return new Command("NOT FOUND");
+        public WaitCommand parseWaitCommand(string[] instruction)
+        {
+            int milliseconds = Int32.Parse(instruction[1]);
+            return new WaitCommand(milliseconds);
+        }
+
+        public CloseCommand parseCloseCommand(string[] instruction)
+        {
+            string topic = instruction[1];
+            return new CloseCommand(topic);
         }
     }
 
     [Serializable]
-    public class Command
+    public abstract class Command
     {
         private string issuerId;
         private string type;
 
-        public Command(string type)
+        public Command()
         {
-            this.setType(type);
         }
 
         public string getIssuerId()
@@ -183,14 +209,140 @@ namespace MeetingsSchedule
             this.issuerId = issuerId;
         }
 
-        public string getType()
+        public abstract string getType();
+    }
+
+    [Serializable]
+    public class CreateCommand: Command
+    {
+        string topic;
+        int min_attendees;
+        int nr_slots;
+        int nr_invitees;
+        List<Slot> slots;
+
+        public CreateCommand(string topic, int min_attendees, int nr_slots, int nr_invitees, List<Slot> slots)
         {
-            return type;
+            this.topic = topic;
+            this.min_attendees = min_attendees;
+            this.nr_slots = nr_slots;
+            this.nr_invitees = nr_invitees;
+            this.slots = slots;
         }
 
-        public void setType(string type)
+        public string getTopic()
         {
-            this.type = type;
+            return this.topic;
+        }
+
+        public int getMinAttendees()
+        {
+            return this.min_attendees;
+        }
+
+        public int getNrSlots()
+        {
+            return this.nr_slots;
+        }
+
+        public int getNrInvitees()
+        {
+            return this.nr_invitees;
+        }
+
+        public List<Slot> getSlots()
+        {
+            return this.slots;
+        }
+
+        override
+        public string getType()
+        {
+            return "CREATE " + this.topic + " " + this.nr_slots + " " + this.min_attendees + " " + this.nr_invitees;
+        }
+    }
+
+    [Serializable]
+    public class ListCommand : Command
+    {
+        override
+        public string getType()
+        {
+            return "LIST";
+        }
+    }
+
+    [Serializable]
+    public class JoinCommand : Command
+    {
+        string topic;
+        public JoinCommand(string topic)
+        {
+            this.topic = topic;
+        }
+
+        public string getTopic()
+        {
+            return this.topic;
+        }
+
+        override
+        public string getType()
+        {
+            return "JOIN " + this.topic;
+        }
+    }
+
+    [Serializable]
+    public class CloseCommand : Command
+    {
+        string topic;
+        public CloseCommand(string topic)
+        {
+            this.topic = topic;
+        }
+
+        public string getTopic()
+        {
+            return this.topic;
+        }
+
+        override
+        public string getType()
+        {
+            return "CLOSE " + this.topic;
+        }
+    }
+
+    [Serializable]
+    public class WaitCommand : Command
+    {
+        int milliseconds;
+
+        public WaitCommand(int milliseconds)
+        {
+            this.milliseconds = milliseconds;
+        }
+
+        public int getMilliseconds()
+        {
+            return this.milliseconds;
+        }
+
+        override
+        public string getType()
+        {
+            return "WAIT " + this.milliseconds;
+        }
+    }
+
+    [Serializable]
+    public class NotFoundCommand : Command
+    {
+        override
+        public string getType()
+        {
+            return "NOTFOUND";
         }
     }
 }

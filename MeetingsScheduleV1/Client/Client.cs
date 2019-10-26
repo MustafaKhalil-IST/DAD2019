@@ -26,12 +26,16 @@ namespace MeetingsSchedule
 
         static void Main(string[] args)
         {
-            TcpChannel channel = new TcpChannel();
+            Console.WriteLine("Please enter your id: ");
+            string myId = Console.ReadLine();
+            Console.WriteLine("Please enter your port number: ");
+            int myPort = Int32.Parse(Console.ReadLine());
+            myId += "-" + myPort;
+
+            TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
             ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface),
                                                                            "tcp://localhost:8086/ServerObject");
-            Console.WriteLine("Please enter your id: ");
-            string myId = Console.ReadLine();
             if (server == null)
                 System.Console.WriteLine("Could not locate server");
             else
@@ -49,40 +53,45 @@ namespace MeetingsSchedule
                     char[] delimiter = { ' ' };
                     string[] instructionParts = line.Split(delimiter, StringSplitOptions.RemoveEmptyEntries);
 
-                    Command command = parser.parse(instructionParts);
-                    command.setIssuerId(myId);
-
-                    Console.WriteLine(command.getType());
-                    server.execute(command);
-
-                    /*
-                    bool useCallback = true;
-
-                    if (!useCallback)
+                    if (instructionParts[0] == "create")
                     {
-                        // Alternative 1: asynchronous call without callback
-                        // Create delegate to remote method
-                        RemoteAsyncDelegate RemoteDel = new RemoteAsyncDelegate(server.execute);
-                        // Call delegate to remote method
-                        IAsyncResult RemAr = RemoteDel.BeginInvoke(command, null, null);
-                        // Wait for the end of the call and then explictly call EndInvoke
-                        RemAr.AsyncWaitHandle.WaitOne();
-                        Console.WriteLine(RemoteDel.EndInvoke(RemAr));
-                    }
-                    else
+                        CreateCommand command = parser.parseCreateCommand(instructionParts);
+                        command.setIssuerId(myId);
+                        Console.WriteLine(command.getType());
+                        server.execute(command);
+                    } 
+                    else if (instructionParts[0] == "list")
                     {
-                        // Alternative 2: asynchronous call with callback
-                        // Create delegate to remote method
-                        RemoteAsyncDelegate RemoteDel = new RemoteAsyncDelegate(server.execute);
-                        // Create delegate to local callback
-                        AsyncCallback RemoteCallback = new AsyncCallback(Client.OurRemoteAsyncCallBack);
-                        // Call remote method
-                        IAsyncResult RemAr = RemoteDel.BeginInvoke(command, RemoteCallback, null);
+                        ListCommand command = parser.parseListCommand(instructionParts);
+                        command.setIssuerId(myId);
+                        Console.WriteLine(command.getType());
+                        server.execute(command);
                     }
-
-                    // Console.WriteLine("executed with status: " + res);
-                }*/
-
+                    else if (instructionParts[0] == "join")
+                    {
+                        JoinCommand command = parser.parseJoinCommand(instructionParts);
+                        command.setIssuerId(myId);
+                        Console.WriteLine(command.getType());
+                        server.execute(command);
+                    }
+                    else if (instructionParts[0] == "close")
+                    {
+                        CloseCommand command = parser.parseCloseCommand(instructionParts);
+                        command.setIssuerId(myId);
+                        Console.WriteLine(command.getType());
+                        server.execute(command);
+                    }
+                    else if (instructionParts[0] == "wait")
+                    {
+                        WaitCommand command = parser.parseWaitCommand(instructionParts);
+                        command.setIssuerId(myId);
+                        Console.WriteLine(command.getType());
+                        server.execute(command);
+                    } else
+                    {
+                        NotFoundCommand command = new NotFoundCommand();
+                        Console.WriteLine(command.getType());
+                    }
                 }
             }
             System.Console.ReadLine();
