@@ -33,6 +33,9 @@ namespace MeetingsSchedule
             myId += "-" + myPort;
 
             TcpChannel channel = new TcpChannel(myPort);
+            ClientObject client = new ClientObject();
+            RemotingServices.Marshal(client, "ClientObject", typeof(ClientObject));
+
             ChannelServices.RegisterChannel(channel, false);
             ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface),
                                                                            "tcp://localhost:8086/ServerObject");
@@ -108,6 +111,15 @@ namespace MeetingsSchedule
         {
             return null;
         }
+
+        public void listMeetings(List<MeetingProposal> meetings)
+        {
+            foreach(MeetingProposal meeting in meetings)
+            {
+                Console.WriteLine(meeting.getCoordinator() + " " + meeting.getTopic());
+            }
+        }
+
         public void crash()
         {
         }

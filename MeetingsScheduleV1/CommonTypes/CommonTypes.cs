@@ -13,63 +13,59 @@ namespace MeetingsSchedule
         private string topic;
         private int min_attendees;
         private List<Slot> slots;
-        private SortedSet<string> invitees;
+        private List<string> invitees;
         private bool closed;
         private bool cancelled;
         private Slot selectedSlot;
         private SortedSet<string> participants;
 
-        public string Coordinator
+        public MeetingProposal(string coordinator, string topic, int min_attendees, List<Slot> slots, List<string> invitees)
         {
-            get { return coordinator; }
-            set { this.coordinator = value; }
+            this.coordinator = coordinator;
+            this.topic = topic;
+            this.min_attendees = min_attendees;
+            this.slots = slots;
+            this.invitees = invitees;
+            this.closed = false;
+            this.cancelled = false;
+            this.selectedSlot = null;
+            this.participants = new SortedSet<string>();
+        
         }
 
-        public string Topic
+        public string getCoordinator()
         {
-            get { return topic; }
-            set { this.topic = value; }
+            return this.coordinator;
         }
 
-        public int MinAttendees
+        public string getTopic()
         {
-            get { return min_attendees; }
-            set { this.min_attendees = value; }
+            return this.topic;
         }
 
-        public bool Closed
+        public List<Slot> getSlots()
         {
-            get { return closed; }
-            set { this.closed = value; }
-        }
-
-        public bool Cancelled
-        {
-            get { return cancelled; }
-            set { this.cancelled = value; }
-        }
-
-        public Slot SelectedSlot
-        {
-            get { return selectedSlot; }
-            set { this.selectedSlot = value; }
-        }
-
-        public SortedSet<string> Invitees
-        {
-            get { return invitees; }
-            set { this.invitees = value; }
-        }
-
-        public SortedSet<string> Participants
-        {
-            get { return participants; }
-            set { this.participants = value; }
+            return this.slots;
         }
 
         public void addParticipant(string participant)
         {
             this.participants.Add(participant);
+        }
+
+        public void cancel()
+        {
+            this.cancelled = true;
+        }
+
+        public void close()
+        {
+            this.closed = true;
+        }
+
+        public void selectSlot(Slot slot)
+        {
+            this.selectedSlot = slot;
         }
     }
 
@@ -79,16 +75,20 @@ namespace MeetingsSchedule
         private string location;
         private int capacity;
 
-        public string Location
+        public Room(string location, int capacity)
         {
-            get { return location; }
-            set { this.location = value; }
+            this.location = location;
+            this.capacity = capacity;
         }
 
-        public int Capacity
+        public int getCapacity()
         {
-            get { return capacity; }
-            set { this.capacity = value; }
+            return this.capacity;
+        }
+
+        public string getLocation()
+        {
+            return this.location;
         }
     }
 
@@ -104,23 +104,23 @@ namespace MeetingsSchedule
             this.date = date;
         }
 
-        public string Location
+        public string getLocation()
         {
-            get { return location; }
-            set { this.location = value; }
+            return this.location;
         }
 
-        public DateTime Date
+        public DateTime getDate()
         {
-            get { return date; }
-            set { this.date = value; }
+            return this.date;
         }
+        
     }
 
     public interface ClientInterface
     {
         void addMeeting(MeetingProposal proposal);
         MeetingProposal GetMeeting(string topic);
+        void listMeetings(List<MeetingProposal> meetings);
         void crash();
         void status();
         void unfreeze();
@@ -162,7 +162,18 @@ namespace MeetingsSchedule
                 slots.Add(new Slot(location, date));
             }
 
-            return new CreateCommand(topic, min_attendees, nr_slots, nr_invitees, slots);
+            List<string> invitees = new List<string>();
+            if(nr_invitees == 0)
+            {
+                invitees = null;
+            }
+
+            else
+            {
+                invitees = new List<string>();
+            }
+
+            return new CreateCommand(topic, min_attendees, nr_slots, nr_invitees, slots, invitees);
         }
 
         public ListCommand parseListCommand(string[] instruction)
@@ -173,7 +184,13 @@ namespace MeetingsSchedule
         public JoinCommand parseJoinCommand(string[] instruction)
         {
             string topic = instruction[1];
-            return new JoinCommand(topic);
+            string desiredSlotInfo = instruction[2];
+            char[] delimiter = { ',' };
+            string[] slot_infos = desiredSlotInfo.Split(delimiter, StringSplitOptions.RemoveEmptyEntries);
+            string location = slot_infos[0];
+            DateTime date = DateTime.Parse(slot_infos[1]);
+            Slot desiredSlot = new Slot(location, date);
+            return new JoinCommand(topic, desiredSlot);
         }
 
         public WaitCommand parseWaitCommand(string[] instruction)
@@ -220,39 +237,23 @@ namespace MeetingsSchedule
         int nr_slots;
         int nr_invitees;
         List<Slot> slots;
+        List<string> invitees;
+        MeetingProposal meeting;
 
-        public CreateCommand(string topic, int min_attendees, int nr_slots, int nr_invitees, List<Slot> slots)
+        public CreateCommand(string topic, int min_attendees, int nr_slots, int nr_invitees, List<Slot> slots, List<string> invitees)
         {
             this.topic = topic;
             this.min_attendees = min_attendees;
             this.nr_slots = nr_slots;
             this.nr_invitees = nr_invitees;
             this.slots = slots;
+            this.invitees = invitees;
+            this.meeting = new MeetingProposal(this.getIssuerId(), this.topic, this.min_attendees, this.slots, this.invitees);
         }
 
-        public string getTopic()
+        public MeetingProposal getMeetingProposal()
         {
-            return this.topic;
-        }
-
-        public int getMinAttendees()
-        {
-            return this.min_attendees;
-        }
-
-        public int getNrSlots()
-        {
-            return this.nr_slots;
-        }
-
-        public int getNrInvitees()
-        {
-            return this.nr_invitees;
-        }
-
-        public List<Slot> getSlots()
-        {
-            return this.slots;
+            return this.meeting;
         }
 
         override
@@ -276,9 +277,11 @@ namespace MeetingsSchedule
     public class JoinCommand : Command
     {
         string topic;
-        public JoinCommand(string topic)
+        Slot desiredSlot;
+        public JoinCommand(string topic, Slot desiredSlot)
         {
             this.topic = topic;
+            this.desiredSlot = desiredSlot;
         }
 
         public string getTopic()
@@ -286,10 +289,15 @@ namespace MeetingsSchedule
             return this.topic;
         }
 
+        public Slot getDesiredSlot()
+        {
+            return this.desiredSlot;
+        }
+
         override
         public string getType()
         {
-            return "JOIN " + this.topic;
+            return "JOIN " + this.topic + " " + this.desiredSlot.getLocation() + "," + this.desiredSlot.getDate();
         }
     }
 
