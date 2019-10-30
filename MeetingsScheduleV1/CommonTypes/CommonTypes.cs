@@ -29,6 +29,19 @@ namespace MeetingsSchedule
             }
             return false;
         }
+
+        public List<Room> getFreeRoomsIn(Slot slot)
+        {
+            List<Room> rooms = new List<Room>();
+            foreach (Room room in this.rooms[slot.getLocation()])
+            {
+                if (room.isFree(slot.getDate()))
+                {
+                    rooms.Add(room);
+                }
+            }
+            return rooms;
+        }
     }
 
     [Serializable]
@@ -44,6 +57,8 @@ namespace MeetingsSchedule
         private Slot selectedSlot;
         private Dictionary<string, List<Slot>> participants;
         private RoomsManager roomsManager;
+        private List<string> finalParticipants;
+        private Room selectedRoom;
         public MeetingProposal(string coordinator, string topic, int min_attendees, List<Slot> slots, List<string> invitees)
         {
             this.coordinator = coordinator;
@@ -56,6 +71,18 @@ namespace MeetingsSchedule
             this.selectedSlot = null;
             this.participants = new Dictionary<string, List<Slot>>();
             this.roomsManager = new RoomsManager();
+            this.finalParticipants = new List<string>();
+            this.selectedRoom = null;
+        }
+
+        public bool isClosed()
+        {
+            return this.closed;
+        }
+
+        public bool isCancelled()
+        {
+            return this.cancelled;
         }
 
         public string getCoordinator()
@@ -91,50 +118,72 @@ namespace MeetingsSchedule
 
         public void close()
         {
-            Dictionary<Slot, int> interestingSlots = new Dictionary<Slot, int>();
+            // get every slot with its clients
+            Dictionary<Slot, List<string>> interestingSlots = new Dictionary<Slot, List<string>>();
             foreach(Slot slot in this.slots)
             {
-                interestingSlots.Add(slot, 0);
+                interestingSlots.Add(slot, new List<string>());
             }
             
+            // check which slot has a free room, if so, add the participant to the slot list
             foreach(Slot slot in this.slots)
             {
                 if (this.roomsManager.hasFreeRoomIn(slot.getLocation(), slot.getDate()))
                 {
-                    // select room
                     foreach(string participant in this.participants.Keys)
                     {
                         if (this.participants[participant].Contains(slot))
                         {
-                            interestingSlots[slot]++;
+                            interestingSlots[slot].Add(participant);
                         }
                     }
                 }
             }
 
-            int maxInterests = -1;
+            // get the slot with highest number of interested participants
+            int maxNumberOfParticipants = -1;
             foreach (Slot slot in interestingSlots.Keys)
             {
-                if (interestingSlots[slot] > maxInterests)
+                // get all free rooms in the date of the slot
+                List<Room> freeRooms = this.roomsManager.getFreeRoomsIn(slot);
+
+                //get the room with highest capacity
+                Room roomWithMaxCapacity = null;
+                int capacity = -1;
+                foreach (Room room in freeRooms)
                 {
-                    maxInterests = interestingSlots[slot];
+                    if (room.getCapacity() > capacity)
+                    {
+                        capacity = room.getCapacity();
+                        roomWithMaxCapacity = room;
+                    }
+                }
+
+                // the number of people who could participate is the min of max room capacity and number of interested people
+                int numberOfParticipants = Math.Min(capacity, interestingSlots[slot].Count);
+
+                
+                if (numberOfParticipants  > maxNumberOfParticipants)
+                {
                     this.selectedSlot = slot;
+                    this.selectedRoom = roomWithMaxCapacity;
+                    maxNumberOfParticipants = numberOfParticipants;
                 }
             }
 
-            if(maxInterests < this.min_attendees)
+            if(maxNumberOfParticipants < this.min_attendees)
             {
                 this.selectedSlot = null;
                 this.cancel();
             }
 
+            // if number of participants is higher than the room capacity, exclude some of them, policy is not decided yet TODO
+            if (this.finalParticipants.Count > this.selectedRoom.getCapacity())
+            {
+                this.finalParticipants = this.finalParticipants.GetRange(0, this.selectedRoom.getCapacity());
+            }
+            
             this.closed = true;
-            // TODO exclude some participants if there is no capacity
-        }
-
-        public void selectSlot(Slot slot)
-        {
-            this.selectedSlot = slot;
         }
     }
 

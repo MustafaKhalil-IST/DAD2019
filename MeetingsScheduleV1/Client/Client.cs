@@ -116,7 +116,16 @@ namespace MeetingsSchedule
         {
             foreach(MeetingProposal meeting in meetings)
             {
-                Console.WriteLine(meeting.getCoordinator() + " " + meeting.getTopic());
+                string closed = "Open";
+                if (meeting.isClosed())
+                {
+                    closed = "Closed";
+                }
+                if (meeting.isCancelled())
+                {
+                    closed = "Cancelled";
+                }
+                Console.WriteLine(meeting.getCoordinator() + " " + meeting.getTopic() + " - " + closed);
             }
         }
 

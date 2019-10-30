@@ -134,7 +134,7 @@ namespace MeetingsSchedule
         public int execute(WaitCommand command)
         {
             Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
-            // sleep ??
+            System.Threading.Thread.Sleep(command.getMilliseconds());
             return 0;
         }
 
