@@ -28,22 +28,34 @@ namespace MeetingsSchedule
     {
         // Private Methods
         Dictionary<string, HashSet<MeetingProposal>> meetings = new Dictionary<string, HashSet<MeetingProposal>>();
-        Dictionary<string, MeetingProposal> meetingsPerTopic = new Dictionary<string, MeetingProposal>();
 
         private void createMeeting(string client_id, MeetingProposal proposal)
         {
+            if (!this.meetings.ContainsKey(client_id))
+            {
+                this.meetings[client_id] = new HashSet<MeetingProposal>();
+            } 
             this.meetings[client_id].Add(proposal);
-            this.meetingsPerTopic.Add(proposal.getTopic(), proposal);
         }
 
         private MeetingProposal getMeetingByTopic(string topic)
         {
-            return this.meetingsPerTopic[topic];
+            foreach(string client_id in this.meetings.Keys)
+            {
+                foreach(MeetingProposal proposal in this.meetings[client_id])
+                {
+                    if (proposal.getTopic() == topic)
+                    {
+                        return proposal;
+                    }
+                }
+            }
+            return null;
         }
 
-        private void joinMeeting(string client_id, MeetingProposal proposal)
+        private void joinMeeting(string client_id, MeetingProposal proposal, List<Slot> desiredSlots)
         {
-            proposal.addParticipant(client_id);
+            proposal.addParticipant(client_id, desiredSlots);
         }
 
         private void closeMeeting(string client_id, string topic)
@@ -53,6 +65,7 @@ namespace MeetingsSchedule
                 if(proposal.getTopic() == topic)
                 {
                     proposal.close();
+                    break;
                 }
             }
         }
@@ -79,14 +92,14 @@ namespace MeetingsSchedule
         public int execute(ListCommand command)
         {
             Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
-            // get client port
-            // open channel
-            // prepare list of meetings
-            // send it
+
             List<MeetingProposal> proposals = new List<MeetingProposal>();
-            foreach(string topic in this.meetingsPerTopic.Keys)
+            foreach(string client_id in this.meetings.Keys)
             {
-                proposals.Add(this.meetingsPerTopic[topic]);
+                foreach(MeetingProposal proposal in this.meetings[client_id])
+                {
+                    proposals.Add(proposal);
+                }
             }
 
             char[] delimiter = { '-' };
@@ -114,7 +127,7 @@ namespace MeetingsSchedule
         public int execute(JoinCommand command)
         {
             Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
-            this.joinMeeting(command.getIssuerId(), this.getMeetingByTopic(command.getTopic()));
+            this.joinMeeting(command.getIssuerId(), this.getMeetingByTopic(command.getTopic()), command.getDesiredSlots());
             return 0;
         }
 
@@ -134,12 +147,15 @@ namespace MeetingsSchedule
         public void crash()
         {
         }
+
         public void status()
         {
         }
+
         public void unfreeze()
         {
         }
+
         public void freeze()
         {
         }

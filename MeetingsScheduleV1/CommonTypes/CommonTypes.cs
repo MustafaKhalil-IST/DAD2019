@@ -7,6 +7,31 @@ using System.Threading.Tasks;
 namespace MeetingsSchedule
 {
     [Serializable]
+    class RoomsManager
+    {
+        private Dictionary<string, List<Room>> rooms;
+
+        public RoomsManager()
+        {
+            this.rooms = new Dictionary<string, List<Room>>();
+            this.rooms.Add("Lisbon", new List<Room>() { new Room("R1", "Lisbon", 3), new Room("R2", "Lisbon", 3) });
+            this.rooms.Add("Porto", new List<Room>() { new Room("R1", "Lisbon", 3), new Room("R2", "Lisbon", 3) });
+        }
+
+        public bool hasFreeRoomIn(string location, DateTime date)
+        {
+            foreach (Room room in this.rooms[location])
+            {
+                if (room.isFree(date))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    [Serializable]
     public class MeetingProposal
     {
         private string coordinator;
@@ -17,8 +42,8 @@ namespace MeetingsSchedule
         private bool closed;
         private bool cancelled;
         private Slot selectedSlot;
-        private SortedSet<string> participants;
-
+        private Dictionary<string, List<Slot>> participants;
+        private RoomsManager roomsManager;
         public MeetingProposal(string coordinator, string topic, int min_attendees, List<Slot> slots, List<string> invitees)
         {
             this.coordinator = coordinator;
@@ -29,8 +54,8 @@ namespace MeetingsSchedule
             this.closed = false;
             this.cancelled = false;
             this.selectedSlot = null;
-            this.participants = new SortedSet<string>();
-        
+            this.participants = new Dictionary<string, List<Slot>>();
+            this.roomsManager = new RoomsManager();
         }
 
         public string getCoordinator()
@@ -48,9 +73,15 @@ namespace MeetingsSchedule
             return this.slots;
         }
 
-        public void addParticipant(string participant)
+        public Dictionary<string, List<Slot>> getParticipants()
         {
-            this.participants.Add(participant);
+            return this.participants;
+        }
+
+
+        public void addParticipant(string participant, List<Slot> desiredSlots)
+        {
+            this.participants.Add(participant, desiredSlots);
         }
 
         public void cancel()
@@ -60,7 +91,45 @@ namespace MeetingsSchedule
 
         public void close()
         {
+            Dictionary<Slot, int> interestingSlots = new Dictionary<Slot, int>();
+            foreach(Slot slot in this.slots)
+            {
+                interestingSlots.Add(slot, 0);
+            }
+            
+            foreach(Slot slot in this.slots)
+            {
+                if (this.roomsManager.hasFreeRoomIn(slot.getLocation(), slot.getDate()))
+                {
+                    // select room
+                    foreach(string participant in this.participants.Keys)
+                    {
+                        if (this.participants[participant].Contains(slot))
+                        {
+                            interestingSlots[slot]++;
+                        }
+                    }
+                }
+            }
+
+            int maxInterests = -1;
+            foreach (Slot slot in interestingSlots.Keys)
+            {
+                if (interestingSlots[slot] > maxInterests)
+                {
+                    maxInterests = interestingSlots[slot];
+                    this.selectedSlot = slot;
+                }
+            }
+
+            if(maxInterests < this.min_attendees)
+            {
+                this.selectedSlot = null;
+                this.cancel();
+            }
+
             this.closed = true;
+            // TODO exclude some participants if there is no capacity
         }
 
         public void selectSlot(Slot slot)
@@ -72,13 +141,22 @@ namespace MeetingsSchedule
     [Serializable]
     public class Room
     {
+        private string id;
         private string location;
         private int capacity;
+        private HashSet<DateTime> reserves;
 
-        public Room(string location, int capacity)
+        public Room(string id, string location, int capacity)
         {
+            this.id = id;
             this.location = location;
             this.capacity = capacity;
+            this.reserves = new HashSet<DateTime>();
+        }
+
+        public string getID()
+        {
+            return this.id;
         }
 
         public int getCapacity()
@@ -89,6 +167,16 @@ namespace MeetingsSchedule
         public string getLocation()
         {
             return this.location;
+        }
+
+        public void addReservation(DateTime date)
+        {
+            this.reserves.Add(date);
+        }
+
+        public bool isFree(DateTime date)
+        {
+            return this.reserves.Contains(date);
         }
     }
 
@@ -113,7 +201,12 @@ namespace MeetingsSchedule
         {
             return this.date;
         }
-        
+
+        public override bool Equals(Object obj)
+        {
+            Slot slot = (Slot)obj;
+            return this.date == slot.getDate() && this.location == slot.getLocation();
+        }
     }
 
     public interface ClientInterface
@@ -184,13 +277,20 @@ namespace MeetingsSchedule
         public JoinCommand parseJoinCommand(string[] instruction)
         {
             string topic = instruction[1];
-            string desiredSlotInfo = instruction[2];
-            char[] delimiter = { ',' };
-            string[] slot_infos = desiredSlotInfo.Split(delimiter, StringSplitOptions.RemoveEmptyEntries);
-            string location = slot_infos[0];
-            DateTime date = DateTime.Parse(slot_infos[1]);
-            Slot desiredSlot = new Slot(location, date);
-            return new JoinCommand(topic, desiredSlot);
+            int nr_desired_slots = Int32.Parse(instruction[2]);
+            List<Slot> desiredSlots = new List<Slot>();
+            for(int i = 0; i < nr_desired_slots; i++)
+            {
+                string desiredSlotInfo = instruction[i + 3];
+                char[] delimiter = { ',' };
+                string[] slot_infos = desiredSlotInfo.Split(delimiter, StringSplitOptions.RemoveEmptyEntries);
+                string location = slot_infos[0];
+                DateTime date = DateTime.Parse(slot_infos[1]);
+                Slot desiredSlot = new Slot(location, date);
+
+                desiredSlots.Add(desiredSlot);
+            }
+            return new JoinCommand(topic, desiredSlots);
         }
 
         public WaitCommand parseWaitCommand(string[] instruction)
@@ -277,11 +377,11 @@ namespace MeetingsSchedule
     public class JoinCommand : Command
     {
         string topic;
-        Slot desiredSlot;
-        public JoinCommand(string topic, Slot desiredSlot)
+        List<Slot> desiredSlots;
+        public JoinCommand(string topic, List<Slot> desiredSlots)
         {
             this.topic = topic;
-            this.desiredSlot = desiredSlot;
+            this.desiredSlots = desiredSlots;
         }
 
         public string getTopic()
@@ -289,15 +389,15 @@ namespace MeetingsSchedule
             return this.topic;
         }
 
-        public Slot getDesiredSlot()
+        public List<Slot> getDesiredSlots()
         {
-            return this.desiredSlot;
+            return this.desiredSlots;
         }
 
         override
         public string getType()
         {
-            return "JOIN " + this.topic + " " + this.desiredSlot.getLocation() + "," + this.desiredSlot.getDate();
+            return "JOIN " + this.topic;
         }
     }
 
