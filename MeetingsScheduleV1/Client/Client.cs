@@ -26,10 +26,8 @@ namespace MeetingsSchedule
 
         static void Main(string[] args)
         {
-            Console.WriteLine("Please enter your id: ");
-            string myId = Console.ReadLine();
-            Console.WriteLine("Please enter your port number: ");
-            int myPort = Int32.Parse(Console.ReadLine());
+            string myId = args[0];
+            int myPort = Int32.Parse(args[1]);
             myId += "-" + myPort;
 
             TcpChannel channel = new TcpChannel(myPort);
@@ -47,7 +45,7 @@ namespace MeetingsSchedule
 
                 InstructsParser parser = new InstructsParser();
 
-                string clientScript = args[0];
+                string clientScript = @"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV1\" + args[2];
 
                 string[] lines = File.ReadAllLines(clientScript);
 
