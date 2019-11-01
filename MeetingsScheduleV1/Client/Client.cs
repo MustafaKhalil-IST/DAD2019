@@ -9,11 +9,14 @@ using System.Runtime.Remoting.Messaging;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Tcp;
 using System.IO;
+using System.Windows.Forms;
 
 namespace MeetingsSchedule
 {
     class Client
     {
+        private bool isFrozen = false;
+
         public delegate int RemoteAsyncDelegate(Command command);
 
         public static void OurRemoteAsyncCallBack(IAsyncResult ar)
@@ -129,9 +132,11 @@ namespace MeetingsSchedule
 
         public void crash()
         {
+            Environment.Exit(-1);
         }
-        public void status()
+        public int status()
         {
+            return 1;
         }
         public void unfreeze()
         {

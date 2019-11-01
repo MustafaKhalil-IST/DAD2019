@@ -109,7 +109,7 @@
             this.results.ItemHeight = 22;
             this.results.Location = new System.Drawing.Point(564, 58);
             this.results.Name = "results";
-            this.results.Size = new System.Drawing.Size(372, 290);
+            this.results.Size = new System.Drawing.Size(579, 290);
             this.results.TabIndex = 7;
             // 
             // label3
@@ -125,7 +125,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(968, 384);
+            this.ClientSize = new System.Drawing.Size(1176, 384);
             this.Controls.Add(this.label3);
             this.Controls.Add(this.results);
             this.Controls.Add(this.errorMessage);

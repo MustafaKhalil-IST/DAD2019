@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace MeetingsSchedule
 {
     [Serializable]
-    class RoomsManager
+    public class RoomsManager
     {
         private Dictionary<string, List<Room>> rooms;
 
@@ -42,6 +43,20 @@ namespace MeetingsSchedule
             }
             return rooms;
         }
+
+        public void addRoom(Room room)
+        {
+            if (!this.rooms.ContainsKey(room.getLocation()))
+            {
+                this.rooms.Add(room.getLocation(), new List<Room>());
+            }
+            this.rooms[room.getLocation()].Add(room);
+        }
+
+        public Dictionary<string, List<Room>> getRooms()
+        {
+            return this.rooms;
+        }
     }
 
     [Serializable]
@@ -70,9 +85,13 @@ namespace MeetingsSchedule
             this.cancelled = false;
             this.selectedSlot = null;
             this.participants = new Dictionary<string, List<Slot>>();
-            this.roomsManager = new RoomsManager();
             this.finalParticipants = new List<string>();
             this.selectedRoom = null;
+        }
+
+        public void setRoomsManager(RoomsManager roomsManager)
+        {
+            this.roomsManager = roomsManager;
         }
 
         public bool isClosed()
@@ -264,7 +283,7 @@ namespace MeetingsSchedule
         MeetingProposal GetMeeting(string topic);
         void listMeetings(List<MeetingProposal> meetings);
         void crash();
-        void status();
+        int status();
         void unfreeze();
         void freeze();
     }
@@ -277,10 +296,15 @@ namespace MeetingsSchedule
         int execute(CloseCommand command);
         int execute(WaitCommand command);
         int execute(NotFoundCommand command);
+        void addRoom(Room room);
         void crash();
-        void status();
+        int status();
         void unfreeze();
         void freeze();
+    }
+
+    public interface PuppetMasterInterface
+    {
     }
 
     public class InstructsParser

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Tcp;
+using System.Windows.Forms;
 
 namespace MeetingsSchedule
 {
@@ -27,10 +28,13 @@ namespace MeetingsSchedule
     class ServerObject : MarshalByRefObject, ServerInterface
     {
         // Private Methods
+        private bool isFrozen = false;
         Dictionary<string, HashSet<MeetingProposal>> meetings = new Dictionary<string, HashSet<MeetingProposal>>();
+        RoomsManager roomsManager = new RoomsManager();
 
         private void createMeeting(string client_id, MeetingProposal proposal)
         {
+            proposal.setRoomsManager(this.roomsManager);
             if (!this.meetings.ContainsKey(client_id))
             {
                 this.meetings[client_id] = new HashSet<MeetingProposal>();
@@ -144,12 +148,37 @@ namespace MeetingsSchedule
             return 0;
         }
 
-        public void crash()
+        public void addRoom(Room room)
         {
+            this.roomsManager.addRoom(room);
         }
 
-        public void status()
+        public void crash()
         {
+            Environment.Exit(-1);
+        }
+
+        public int status()
+        {
+            Console.WriteLine("Status - Rooms");
+            foreach (string location in this.roomsManager.getRooms().Keys)
+            {
+                foreach(Room room in this.roomsManager.getRooms()[location])
+                {
+                    Console.WriteLine("Room " + room.getID() + " " + room.getLocation() + " " + room.getCapacity());
+                }
+            }
+
+            Console.WriteLine("Status - Meetings");
+            foreach (string client in this.meetings.Keys)
+            {
+                foreach (MeetingProposal meeting in this.meetings[client])
+                {
+                    Console.WriteLine("Meeting " + meeting.getTopic());
+                }
+            }
+
+            return 1;
         }
 
         public void unfreeze()
