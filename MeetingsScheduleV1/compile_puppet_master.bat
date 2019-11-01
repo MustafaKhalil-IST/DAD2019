@@ -1,0 +1,1 @@
+C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe /r:CommonTypes.dll .\PuppetMaster\PuppetMaster\Form1.cs .\PuppetMaster\PuppetMaster\Form1.Designer.cs .\PuppetMaster\PuppetMaster\Program.cs
