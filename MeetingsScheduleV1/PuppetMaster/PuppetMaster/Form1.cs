@@ -147,14 +147,19 @@ namespace MeetingsSchedule
             else if (instructionParts[0] == "Freeze")
             {
                 string node = instructionParts[1];
+                ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), node);
+                server.freeze();
             }
             else if (instructionParts[0] == "Unfreeze")
             {
                 string node = instructionParts[1];
+                ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), node);
+                server.unfreeze();
             }
             else if (instructionParts[0] == "Wait")
             {
-                string node = instructionParts[1];
+                int milliseconds = Int32.Parse(instructionParts[1]);
+                System.Threading.Thread.Sleep(milliseconds);
             }
             else
             {

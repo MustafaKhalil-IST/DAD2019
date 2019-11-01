@@ -429,16 +429,25 @@ namespace MeetingsSchedule
             return this.meeting;
         }
 
+        public string getTopic()
+        {
+            return this.topic;
+        }
+
         override
         public string getType()
         {
-            return "CREATE " + this.topic + " " + this.nr_slots + " " + this.min_attendees + " " + this.nr_invitees;
+            return "CREATE";
         }
     }
 
     [Serializable]
     public class ListCommand : Command
     {
+        public ListCommand()
+        {
+        }
+
         override
         public string getType()
         {
@@ -470,7 +479,7 @@ namespace MeetingsSchedule
         override
         public string getType()
         {
-            return "JOIN " + this.topic;
+            return "JOIN";
         }
     }
 
@@ -491,7 +500,7 @@ namespace MeetingsSchedule
         override
         public string getType()
         {
-            return "CLOSE " + this.topic;
+            return "CLOSE";
         }
     }
 
@@ -513,7 +522,7 @@ namespace MeetingsSchedule
         override
         public string getType()
         {
-            return "WAIT " + this.milliseconds;
+            return "WAIT";
         }
     }
 

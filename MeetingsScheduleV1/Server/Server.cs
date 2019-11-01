@@ -31,6 +31,7 @@ namespace MeetingsSchedule
         private bool isFrozen = false;
         Dictionary<string, HashSet<MeetingProposal>> meetings = new Dictionary<string, HashSet<MeetingProposal>>();
         RoomsManager roomsManager = new RoomsManager();
+        List<Command> frozenCommands = new List<Command>();
 
         private void createMeeting(string client_id, MeetingProposal proposal)
         {
@@ -88,58 +89,98 @@ namespace MeetingsSchedule
         // Public Methods
         public int execute(CreateCommand command)
         {
-            Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
-            this.createMeeting(command.getIssuerId(), command.getMeetingProposal());
-            return 0;
+            if (this.isFrozen)
+            {
+                this.frozenCommands.Add(command);
+                return 0;
+            }
+            else 
+            {
+                Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
+                this.createMeeting(command.getIssuerId(), command.getMeetingProposal());
+                return 1;
+            }
         }
 
         public int execute(ListCommand command)
         {
-            Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
-
-            List<MeetingProposal> proposals = new List<MeetingProposal>();
-            foreach(string client_id in this.meetings.Keys)
+            if (this.isFrozen)
             {
-                foreach(MeetingProposal proposal in this.meetings[client_id])
-                {
-                    proposals.Add(proposal);
-                }
+                this.frozenCommands.Add(command);
+                return 0;
             }
-
-            char[] delimiter = { '-' };
-            string[] client_info = command.getIssuerId().Split(delimiter, StringSplitOptions.RemoveEmptyEntries);
-            string port = client_info[1];
-
-            ClientInterface client = (ClientInterface)Activator.GetObject(typeof(ServerInterface),
-                                                                           "tcp://localhost:" + port + "/ClientObject");
-            if (client == null)
-                System.Console.WriteLine("Could not locate client " + command.getIssuerId());
             else
             {
-                client.listMeetings(proposals);
+                Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
+
+                List<MeetingProposal> proposals = new List<MeetingProposal>();
+                foreach (string client_id in this.meetings.Keys)
+                {
+                    foreach (MeetingProposal proposal in this.meetings[client_id])
+                    {
+                        proposals.Add(proposal);
+                    }
+                }
+
+                char[] delimiter = { '-' };
+                string[] client_info = command.getIssuerId().Split(delimiter, StringSplitOptions.RemoveEmptyEntries);
+                string port = client_info[1];
+
+                ClientInterface client = (ClientInterface)Activator.GetObject(typeof(ServerInterface),
+                                                                               "tcp://localhost:" + port + "/ClientObject");
+                if (client == null)
+                    System.Console.WriteLine("Could not locate client " + command.getIssuerId());
+                else
+                {
+                    client.listMeetings(proposals);
+                }
+                return 1;
             }
-            return 0;
         }
 
         public int execute(CloseCommand command)
         {
-            Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
-            this.closeMeeting(command.getIssuerId(), command.getTopic());
-            return 0;
+            if(this.isFrozen)
+            {
+                this.frozenCommands.Add(command);
+                return 0;
+            }
+            else
+            {
+                Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
+                this.closeMeeting(command.getIssuerId(), command.getTopic());
+                return 1;
+            }
         }
 
         public int execute(JoinCommand command)
         {
-            Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
-            this.joinMeeting(command.getIssuerId(), this.getMeetingByTopic(command.getTopic()), command.getDesiredSlots());
-            return 0;
+            if (this.isFrozen)
+            {
+                this.frozenCommands.Add(command);
+                return 0;
+            }
+            else
+            {
+                Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
+                this.joinMeeting(command.getIssuerId(), this.getMeetingByTopic(command.getTopic()), command.getDesiredSlots());
+                return 1;
+            }
         }
 
         public int execute(WaitCommand command)
         {
-            Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
-            System.Threading.Thread.Sleep(command.getMilliseconds());
-            return 0;
+            if (this.isFrozen)
+            {
+                this.frozenCommands.Add(command);
+                return 0;
+            }
+            else
+            {
+                Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
+                System.Threading.Thread.Sleep(command.getMilliseconds());
+                return 0;
+            }
         }
 
         public int execute(NotFoundCommand command)
@@ -160,6 +201,7 @@ namespace MeetingsSchedule
 
         public int status()
         {
+            Console.WriteLine("Status - Frozen: " + this.isFrozen);
             Console.WriteLine("Status - Rooms");
             foreach (string location in this.roomsManager.getRooms().Keys)
             {
@@ -183,10 +225,46 @@ namespace MeetingsSchedule
 
         public void unfreeze()
         {
+            Console.WriteLine("Unfreeze");
+            this.isFrozen = false;
+
+            for(int i = 0; i < this.frozenCommands.Count; i++)
+            {
+                Command command = this.frozenCommands[i];
+
+                if (command.getType() == "CREATE")
+                {
+                    CreateCommand c = (CreateCommand)command;
+                    this.execute(c);
+                }
+                else if (command.getType() == "LIST")
+                {
+                    ListCommand c = (ListCommand)command;
+                    this.execute(c);
+                }
+                else if (command.getType() == "CLOSE")
+                {
+                    CloseCommand c = (CloseCommand)command;
+                    this.execute(c);
+                }
+                else if (command.getType() == "JOIN")
+                {
+                    JoinCommand c = (JoinCommand)command;
+                    this.execute(c);
+                }
+                else if (command.getType() == "WAIT")
+                {
+                    WaitCommand c = (WaitCommand)command;
+                    this.execute(c);
+                }
+            }
+            this.frozenCommands = new List<Command>();
         }
 
         public void freeze()
         {
+            Console.WriteLine("Freeze");
+            this.isFrozen = true;
         }
     }
 }
