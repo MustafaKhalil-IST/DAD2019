@@ -74,6 +74,7 @@ namespace MeetingsSchedule
         private RoomsManager roomsManager;
         private List<string> finalParticipants;
         private Room selectedRoom;
+
         public MeetingProposal(string coordinator, string topic, int min_attendees, List<Slot> slots, List<string> invitees)
         {
             this.coordinator = coordinator;
@@ -87,6 +88,11 @@ namespace MeetingsSchedule
             this.participants = new Dictionary<string, List<Slot>>();
             this.finalParticipants = new List<string>();
             this.selectedRoom = null;
+        }
+
+        public void setCoordinator(string coordinator)
+        {
+            this.coordinator = coordinator;
         }
 
         public void setRoomsManager(RoomsManager roomsManager)
@@ -309,7 +315,7 @@ namespace MeetingsSchedule
 
     public class InstructsParser
     {
-        public CreateCommand parseCreateCommand(string[] instruction)
+        public CreateCommand parseCreateCommand(string[] instruction, string issuerId)
         {
             string topic = instruction[1];
             int min_attendees = Int32.Parse(instruction[2]);
@@ -339,7 +345,9 @@ namespace MeetingsSchedule
                 invitees = new List<string>();
             }
 
-            return new CreateCommand(topic, min_attendees, nr_slots, nr_invitees, slots, invitees);
+            CreateCommand command = new CreateCommand(topic, min_attendees, nr_slots, nr_invitees, slots, invitees);
+            command.getMeetingProposal().setCoordinator(issuerId);
+            return command;
         }
 
         public ListCommand parseListCommand(string[] instruction)
@@ -391,7 +399,7 @@ namespace MeetingsSchedule
 
         public string getIssuerId()
         {
-            return issuerId;
+            return this.issuerId;
         }
 
         public void setIssuerId(string issuerId)

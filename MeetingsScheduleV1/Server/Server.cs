@@ -217,6 +217,13 @@ namespace MeetingsSchedule
                 foreach (MeetingProposal meeting in this.meetings[client])
                 {
                     Console.WriteLine("Meeting " + meeting.getTopic());
+                    Console.WriteLine(" -- Coordinator " + meeting.getCoordinator());
+                    Console.WriteLine(" -- Participants");
+                    foreach(string participant in meeting.getParticipants().Keys)
+                    {
+                        Console.WriteLine(" ---- " + participant);
+                    }
+                    Console.WriteLine(" -- Is Closed: " + meeting.isClosed());
                 }
             }
 

@@ -59,7 +59,7 @@ namespace MeetingsSchedule
 
                     if (instructionParts[0] == "create")
                     {
-                        CreateCommand command = parser.parseCreateCommand(instructionParts);
+                        CreateCommand command = parser.parseCreateCommand(instructionParts, myId);
                         command.setIssuerId(myId);
                         Console.WriteLine(command.getType());
                         server.execute(command);
