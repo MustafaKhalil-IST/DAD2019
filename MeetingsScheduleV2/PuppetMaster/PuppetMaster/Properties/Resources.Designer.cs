@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace PuppetMaster.Properties
+namespace MeetingsScheduleV2.Properties
 {
 
 

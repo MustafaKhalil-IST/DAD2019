@@ -3,8 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Runtime.Remoting;
+using System.Runtime.Remoting.Channels;
+using System.Runtime.Remoting.Channels.Tcp;
+using System.Runtime.Remoting.Messaging;
+using System.IO;
 
-namespace MeetingsSchedule
+namespace MeetingsScheduleV2
 {
     class Client
     {
@@ -39,7 +44,9 @@ namespace MeetingsSchedule
                 System.Console.WriteLine("Found");
                 InstructsParser parser = new InstructsParser();
 
-                string clientScript = @"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV1\" + args[2];
+                // To change
+                // string clientScript = @"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV2\" + args[3];
+                string clientScript = args[3];
 
                 string[] lines = File.ReadAllLines(clientScript);
 
