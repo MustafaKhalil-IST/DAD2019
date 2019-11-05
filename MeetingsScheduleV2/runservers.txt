@@ -1,0 +1,4 @@
+Server server1 tcp://localhost:8086/ServerObject 5 1 2
+Server server2 tcp://localhost:8087/ServerObject 5 1 2
+Server server3 tcp://localhost:8088/ServerObject 5 1 2
+Server server4 tcp://localhost:8089/ServerObject 5 1 2

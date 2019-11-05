@@ -1,11 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace MeetingsScheduleV2
 {
@@ -21,6 +18,10 @@ namespace MeetingsScheduleV2
 
         public bool hasFreeRoomIn(string location, DateTime date)
         {
+            if(!this.rooms.ContainsKey(location))
+            {
+                return false;
+            }
             foreach (Room room in this.rooms[location])
             {
                 if (room.isFree(date))
@@ -33,6 +34,11 @@ namespace MeetingsScheduleV2
 
         public List<Room> getFreeRoomsIn(Slot slot)
         {
+            if (!this.rooms.ContainsKey(slot.getLocation()))
+            {
+                return new List<Room>();
+            }
+
             List<Room> rooms = new List<Room>();
             foreach (Room room in this.rooms[slot.getLocation()])
             {
@@ -150,7 +156,7 @@ namespace MeetingsScheduleV2
             {
                 interestingSlots.Add(slot, new List<string>());
             }
-            
+
             // check which slot has a free room, if so, add the participant to the slot list
             foreach(Slot slot in this.slots)
             {
@@ -168,16 +174,22 @@ namespace MeetingsScheduleV2
 
             // get the slot with highest number of interested participants
             int maxNumberOfParticipants = -1;
+            Room roomWithMaxCapacity = null;
+
             foreach (Slot slot in interestingSlots.Keys)
             {
+                Console.WriteLine(slot.getLocation());
+
                 // get all free rooms in the date of the slot
+                // TODO: not working well
                 List<Room> freeRooms = this.roomsManager.getFreeRoomsIn(slot);
+                Console.WriteLine("free rooms n: " + freeRooms.Count);
 
                 //get the room with highest capacity
-                Room roomWithMaxCapacity = null;
                 int capacity = -1;
                 foreach (Room room in freeRooms)
                 {
+                    Console.WriteLine("Test " + room.getID() + " - " + room.getCapacity());
                     if (room.getCapacity() > capacity)
                     {
                         capacity = room.getCapacity();
@@ -185,20 +197,30 @@ namespace MeetingsScheduleV2
                     }
                 }
 
+                Console.WriteLine("Room with max cap: " + roomWithMaxCapacity.getID() + " " + roomWithMaxCapacity.getCapacity());
+                Console.WriteLine("Interested people: " + interestingSlots[slot].Count);
+
                 // the number of people who could participate is the min of max room 
                 // capacity and number of interested people
                 int numberOfParticipants = Math.Min(capacity, interestingSlots[slot].Count);
-
                 
                 if (numberOfParticipants  > maxNumberOfParticipants)
                 {
+                    Console.WriteLine("N participants: " + numberOfParticipants);
+                    Console.WriteLine("max N participants: " + maxNumberOfParticipants);
+
                     this.selectedSlot = slot;
+                    this.finalParticipants = interestingSlots[this.selectedSlot];
                     this.selectedRoom = roomWithMaxCapacity;
                     maxNumberOfParticipants = numberOfParticipants;
+
+                    Console.WriteLine("Selected room: " + this.selectedRoom.getID());
+                    Console.WriteLine("Final Participants : " + this.finalParticipants.Count);
+                    Console.WriteLine("selected slot : " + this.selectedSlot.getLocation());
                 }
             }
 
-            if(maxNumberOfParticipants < this.min_attendees)
+            if (maxNumberOfParticipants < this.min_attendees)
             {
                 this.selectedSlot = null;
                 this.cancel();
@@ -212,7 +234,9 @@ namespace MeetingsScheduleV2
             }
             
             this.closed = true;
+
         }
+
     }
 
     [Serializable]
@@ -398,7 +422,7 @@ namespace MeetingsScheduleV2
     public abstract class Command
     {
         private string issuerId;
-        private string type;
+        private bool sentByClient;
 
         public Command()
         {
@@ -412,6 +436,16 @@ namespace MeetingsScheduleV2
         public void setIssuerId(string issuerId)
         {
             this.issuerId = issuerId;
+        }
+
+        public void setSentByClient(bool sentByClient) 
+        {
+            this.sentByClient = sentByClient;
+        }
+
+        public bool isSentByClient()
+        {
+            return this.sentByClient;
         }
 
         public abstract string getType();

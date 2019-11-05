@@ -61,31 +61,38 @@ namespace MeetingsScheduleV2
                 Process.Start(@"Server.exe", args);
                 // To change 
                 // Process.Start(@"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV2\Server.exe");
-                this.nodes.Add("tcp://localhost:" + url + "/ServerObject");
+                this.nodes.Add(url);
                 this.results.Items.Add("Server added\n");
             }
             else if (instructionParts[0] == "Client")
             {
                 string username = instructionParts[1];
-                string port = instructionParts[2];
+                string client_url = instructionParts[2];
                 string server_url = instructionParts[3];
                 string script = instructionParts[4];
-                string args = username + " " + port + " " + server_url + " " + script;
+                string args = username + " " + client_url + " " + server_url + " " + script;
                 Process.Start(@"Client.exe", args);
                 // To change 
                 // Process.Start(@"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV2\Client.exe", args);
-                this.nodes.Add("tcp://localhost:" + port + "/ClientObject");
+                this.nodes.Add(client_url);
                 this.results.Items.Add("Client added\n");
             }
             else if (instructionParts[0] == "AddRoom")
             {
-                string roomId = instructionParts[1];
-                string location = instructionParts[2];
-                int capacity = Int32.Parse(instructionParts[3]);
+                string location = instructionParts[1];
+                int capacity = Int32.Parse(instructionParts[2]);
+                string roomId = instructionParts[3];
                 Room room = new Room(roomId, location, capacity);
-                ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface),
-                                                                           "tcp://localhost:8086/ServerObject");
-                server.addRoom(room);
+
+                foreach(string node in this.nodes)
+                {
+                    if (node.EndsWith("ServerObject"))
+                    {
+                        ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), node);
+                        server.addRoom(room);
+                    }
+                }
+ 
                 this.results.Items.Add("Room added\n");
             }
             else if (instructionParts[0] == "Status")

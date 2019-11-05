@@ -8,6 +8,7 @@ using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Tcp;
 using System.Runtime.Remoting.Messaging;
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace MeetingsScheduleV2
 {
@@ -27,10 +28,15 @@ namespace MeetingsScheduleV2
         static void Main(string[] args)
         {
             string username = args[0];
-            int client_url = Int32.Parse(args[1]);
+            string client_url = args[1];
             string server_url = args[2];
 
-            TcpChannel channel = new TcpChannel(client_url);
+            Regex r = new Regex(@"^(?<protocol>\w+)://[^/]+?:(?<port>\d+)?/",
+                          RegexOptions.None, TimeSpan.FromMilliseconds(100));
+            Match m = r.Match(client_url);
+            int port = Int32.Parse(m.Result("${port}"));
+
+            TcpChannel channel = new TcpChannel(port);
             ClientObject client = new ClientObject();
             RemotingServices.Marshal(client, "ClientObject", typeof(ClientObject));
 
@@ -60,6 +66,7 @@ namespace MeetingsScheduleV2
                     {
                         CreateCommand command = parser.parseCreateCommand(instructionParts, myId);
                         command.setIssuerId(myId);
+                        command.setSentByClient(true);
                         Console.WriteLine(command.getType());
                         server.execute(command);
                     } 
@@ -67,6 +74,7 @@ namespace MeetingsScheduleV2
                     {
                         ListCommand command = parser.parseListCommand(instructionParts);
                         command.setIssuerId(myId);
+                        command.setSentByClient(true);
                         Console.WriteLine(command.getType());
                         server.execute(command);
                     }
@@ -74,6 +82,7 @@ namespace MeetingsScheduleV2
                     {
                         JoinCommand command = parser.parseJoinCommand(instructionParts);
                         command.setIssuerId(myId);
+                        command.setSentByClient(true);
                         Console.WriteLine(command.getType());
                         server.execute(command);
                     }
@@ -81,6 +90,7 @@ namespace MeetingsScheduleV2
                     {
                         CloseCommand command = parser.parseCloseCommand(instructionParts);
                         command.setIssuerId(myId);
+                        command.setSentByClient(true);
                         Console.WriteLine(command.getType());
                         server.execute(command);
                     }
@@ -88,6 +98,7 @@ namespace MeetingsScheduleV2
                     {
                         WaitCommand command = parser.parseWaitCommand(instructionParts);
                         command.setIssuerId(myId);
+                        command.setSentByClient(true);
                         Console.WriteLine(command.getType());
                         server.execute(command);
                     } else

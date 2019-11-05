@@ -1,0 +1,3 @@
+create Budget_2019 5 5 0 Lisbon,2019-12-12 Lisbon,2019-12-12 Lisbon,2019-12-12 Lisbon,2019-12-12 Lisbon,2019-12-12
+wait 8000
+close Budget_2019

@@ -1,0 +1,2 @@
+AddRoom Lisbon 10 room1
+AddRoom Porto 20 room2

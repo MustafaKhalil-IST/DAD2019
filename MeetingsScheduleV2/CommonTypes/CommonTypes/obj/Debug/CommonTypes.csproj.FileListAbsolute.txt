@@ -1,0 +1,5 @@
+C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV2\CommonTypes\CommonTypes\bin\Debug\CommonTypes.dll
+C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV2\CommonTypes\CommonTypes\bin\Debug\CommonTypes.pdb
+C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV2\CommonTypes\CommonTypes\obj\Debug\CommonTypes.csprojAssemblyReference.cache
+C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV2\CommonTypes\CommonTypes\obj\Debug\CommonTypes.dll
+C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV2\CommonTypes\CommonTypes\obj\Debug\CommonTypes.pdb

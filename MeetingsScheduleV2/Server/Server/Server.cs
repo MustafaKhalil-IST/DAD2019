@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Tcp;
+using System.IO;
+using System.Text.RegularExpressions;
 
 namespace MeetingsScheduleV2
 {
@@ -14,12 +16,17 @@ namespace MeetingsScheduleV2
         static void Main(string[] args)
         {
             string id = args[0];
-            int url = Int32.Parse(args[1]);
+            string url = args[1];
             int max_faults = Int32.Parse(args[2]);
             int min_delay = Int32.Parse(args[3]);
             int max_delay = Int32.Parse(args[4]);
 
-            TcpChannel channel = new TcpChannel(url);
+            Regex r = new Regex(@"^(?<protocol>\w+)://[^/]+?:(?<port>\d+)?/",
+                          RegexOptions.None, TimeSpan.FromMilliseconds(100));
+            Match m = r.Match(url);
+            int port = Int32.Parse(m.Result("${port}"));
+
+            TcpChannel channel = new TcpChannel(port);
             ChannelServices.RegisterChannel(channel, false);
 
             ServerObject server = new ServerObject(id, url, max_faults, min_delay, max_delay);
@@ -32,9 +39,9 @@ namespace MeetingsScheduleV2
 
     class ServerObject : MarshalByRefObject, ServerInterface
     {
-        // Private Methods
+        // Private Attributes
         private string id;
-        private int url;
+        private string url;
         private int max_faults;
         private int min_delay;
         private int max_delay;
@@ -43,24 +50,39 @@ namespace MeetingsScheduleV2
         Dictionary<string, HashSet<MeetingProposal>> meetings = new Dictionary<string, HashSet<MeetingProposal>>();
         RoomsManager roomsManager = new RoomsManager();
         List<Command> frozenCommands = new List<Command>();
+        string[] serversURLs;
 
-        public ServerObject(string id, int url, int max_faults, int min_delay, int max_delay)
+        public ServerObject(string id, string url, int max_faults, int min_delay, int max_delay)
         {
             this.id = id;
             this.url = url;
             this.max_faults = max_faults;
             this.min_delay = min_delay;
             this.max_delay = max_delay;
+
+            string serversList = "servers.txt";
+            this.serversURLs = File.ReadAllLines(serversList);
         }
 
         private void createMeeting(string client_id, MeetingProposal proposal)
         {
             proposal.setRoomsManager(this.roomsManager);
+            
             if (!this.meetings.ContainsKey(client_id))
             {
                 this.meetings[client_id] = new HashSet<MeetingProposal>();
             } 
             this.meetings[client_id].Add(proposal);
+        }
+
+        // Private Methods
+
+        private void delay()
+        {
+            Random random = new Random();
+            int milliseconds = random.Next(this.min_delay, this.max_delay);
+            Console.WriteLine("delay: " + milliseconds);
+            System.Threading.Thread.Sleep(milliseconds);
         }
 
         private MeetingProposal getMeetingByTopic(string topic)
@@ -109,6 +131,9 @@ namespace MeetingsScheduleV2
         // Public Methods
         public int execute(CreateCommand command)
         {
+            // delay 
+            this.delay();
+
             if (this.isFrozen)
             {
                 this.frozenCommands.Add(command);
@@ -118,12 +143,19 @@ namespace MeetingsScheduleV2
             {
                 Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
                 this.createMeeting(command.getIssuerId(), command.getMeetingProposal());
+
+                this.informOtherServers(command);
+
                 return 1;
             }
         }
 
         public int execute(ListCommand command)
         {
+            // delay 
+            this.delay();
+
+            // maybe it should return list instead of int
             if (this.isFrozen)
             {
                 this.frozenCommands.Add(command);
@@ -159,7 +191,10 @@ namespace MeetingsScheduleV2
 
         public int execute(CloseCommand command)
         {
-            if(this.isFrozen)
+            // delay 
+            this.delay();
+
+            if (this.isFrozen)
             {
                 this.frozenCommands.Add(command);
                 return 0;
@@ -168,12 +203,18 @@ namespace MeetingsScheduleV2
             {
                 Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
                 this.closeMeeting(command.getIssuerId(), command.getTopic());
+
+                this.informOtherServers(command);
+
                 return 1;
             }
         }
 
         public int execute(JoinCommand command)
         {
+            // delay 
+            this.delay();
+
             if (this.isFrozen)
             {
                 this.frozenCommands.Add(command);
@@ -183,12 +224,18 @@ namespace MeetingsScheduleV2
             {
                 Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
                 this.joinMeeting(command.getIssuerId(), this.getMeetingByTopic(command.getTopic()), command.getDesiredSlots());
+
+                this.informOtherServers(command);
+
                 return 1;
             }
         }
 
         public int execute(WaitCommand command)
         {
+            // delay 
+            this.delay();
+
             if (this.isFrozen)
             {
                 this.frozenCommands.Add(command);
@@ -283,6 +330,8 @@ namespace MeetingsScheduleV2
                     WaitCommand c = (WaitCommand)command;
                     this.execute(c);
                 }
+
+                this.informOtherServers(command);
             }
             this.frozenCommands = new List<Command>();
         }
@@ -291,6 +340,49 @@ namespace MeetingsScheduleV2
         {
             Console.WriteLine("Freeze");
             this.isFrozen = true;
+        }
+
+        public void informOtherServers(Command command)
+        {
+            if (command.isSentByClient())
+            {
+                if (command.getType() == "CREATE" || command.getType() == "JOIN" || command.getType() == "CLOSE")
+                {
+                    foreach (string serverURL in this.serversURLs)
+                    {
+                        // Asynchronous calls maybe a better idea
+                        if (serverURL != this.url)
+                        {
+                            try
+                            {
+                                ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), serverURL);
+                                switch (command.getType())
+                                {
+                                    case "CREATE":
+                                        command.setSentByClient(false);
+                                        server.execute((CreateCommand)command);
+                                        break;
+                                    case "JOIN":
+                                        command.setSentByClient(false);
+                                        server.execute((JoinCommand)command);
+                                        break;
+                                    case "CLOSE":
+                                        command.setSentByClient(false);
+                                        server.execute((CloseCommand)command);
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            }
+                            catch (Exception e)
+                            {
+                                Console.WriteLine(serverURL + " FAULT");
+                                // Faults tolerance TODO
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
