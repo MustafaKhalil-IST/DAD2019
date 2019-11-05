@@ -102,6 +102,11 @@ namespace MeetingsScheduleV2
 
         private void joinMeeting(string client_id, MeetingProposal proposal, List<Slot> desiredSlots)
         {
+            // client cannot join a meeting if it is closed or cancelled
+            if (proposal.isClosed() || proposal.isCancelled())
+            {
+                return;
+            }
             proposal.addParticipant(client_id, desiredSlots);
         }
 
