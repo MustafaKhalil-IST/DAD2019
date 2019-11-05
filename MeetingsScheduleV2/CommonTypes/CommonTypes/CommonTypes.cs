@@ -171,25 +171,20 @@ namespace MeetingsScheduleV2
                     }
                 }
             }
-
+            
             // get the slot with highest number of interested participants
             int maxNumberOfParticipants = -1;
             Room roomWithMaxCapacity = null;
 
             foreach (Slot slot in interestingSlots.Keys)
             {
-                Console.WriteLine(slot.getLocation());
-
                 // get all free rooms in the date of the slot
                 // TODO: not working well
                 List<Room> freeRooms = this.roomsManager.getFreeRoomsIn(slot);
-                Console.WriteLine("free rooms n: " + freeRooms.Count);
-
                 //get the room with highest capacity
                 int capacity = -1;
                 foreach (Room room in freeRooms)
                 {
-                    Console.WriteLine("Test " + room.getID() + " - " + room.getCapacity());
                     if (room.getCapacity() > capacity)
                     {
                         capacity = room.getCapacity();
@@ -197,33 +192,30 @@ namespace MeetingsScheduleV2
                     }
                 }
 
-                Console.WriteLine("Room with max cap: " + roomWithMaxCapacity.getID() + " " + roomWithMaxCapacity.getCapacity());
-                Console.WriteLine("Interested people: " + interestingSlots[slot].Count);
-
                 // the number of people who could participate is the min of max room 
                 // capacity and number of interested people
                 int numberOfParticipants = Math.Min(capacity, interestingSlots[slot].Count);
                 
                 if (numberOfParticipants  > maxNumberOfParticipants)
                 {
-                    Console.WriteLine("N participants: " + numberOfParticipants);
-                    Console.WriteLine("max N participants: " + maxNumberOfParticipants);
-
                     this.selectedSlot = slot;
                     this.finalParticipants = interestingSlots[this.selectedSlot];
                     this.selectedRoom = roomWithMaxCapacity;
                     maxNumberOfParticipants = numberOfParticipants;
-
-                    Console.WriteLine("Selected room: " + this.selectedRoom.getID());
-                    Console.WriteLine("Final Participants : " + this.finalParticipants.Count);
-                    Console.WriteLine("selected slot : " + this.selectedSlot.getLocation());
                 }
+            }
+
+            if (this.selectedRoom == null)
+            {
+                this.selectedSlot = null;
+                this.cancel();
             }
 
             if (maxNumberOfParticipants < this.min_attendees)
             {
                 this.selectedSlot = null;
                 this.cancel();
+                return;
             }
 
             // if number of participants is higher than the room capacity, 
@@ -277,7 +269,7 @@ namespace MeetingsScheduleV2
 
         public bool isFree(DateTime date)
         {
-            return this.reserves.Contains(date);
+            return !this.reserves.Contains(date);
         }
     }
 

@@ -290,6 +290,7 @@ namespace MeetingsScheduleV2
                         Console.WriteLine(" ---- " + participant);
                     }
                     Console.WriteLine(" -- Is Closed: " + meeting.isClosed());
+                    Console.WriteLine(" -- Is Cancelled: " + meeting.isCancelled());
                 }
             }
 
