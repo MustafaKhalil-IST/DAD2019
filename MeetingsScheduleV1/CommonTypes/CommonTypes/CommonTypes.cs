@@ -4,8 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-
-namespace MeetingsScheduleV2
+namespace MeetingsSchedule
 {
     [Serializable]
     public class RoomsManager
@@ -17,10 +16,9 @@ namespace MeetingsScheduleV2
             this.rooms = new Dictionary<string, List<Room>>();
         }
 
-        // TODO bool -> Room
         public bool hasFreeRoomIn(string location, DateTime date)
         {
-            if(!this.rooms.ContainsKey(location))
+            if (!this.rooms.ContainsKey(location))
             {
                 return false;
             }
@@ -34,15 +32,15 @@ namespace MeetingsScheduleV2
             return false;
         }
 
-        // TODO slot <-> location,date
         public List<Room> getFreeRoomsIn(Slot slot)
         {
+            List<Room> rooms = new List<Room>();
+
             if (!this.rooms.ContainsKey(slot.getLocation()))
             {
-                return new List<Room>();
+                return rooms;
             }
 
-            List<Room> rooms = new List<Room>();
             foreach (Room room in this.rooms[slot.getLocation()])
             {
                 if (room.isFree(slot.getDate()))
@@ -78,15 +76,13 @@ namespace MeetingsScheduleV2
         private List<string> invitees;
         private bool closed;
         private bool cancelled;
-
         private Slot selectedSlot;
         private Dictionary<string, List<Slot>> participants;
         private RoomsManager roomsManager;
         private List<string> finalParticipants;
         private Room selectedRoom;
 
-        public MeetingProposal(string coordinator, string topic, int min_attendees,
-                               List<Slot> slots, List<string> invitees)
+        public MeetingProposal(string coordinator, string topic, int min_attendees, List<Slot> slots, List<string> invitees)
         {
             this.coordinator = coordinator;
             this.topic = topic;
@@ -156,17 +152,17 @@ namespace MeetingsScheduleV2
         {
             // get every slot with its clients
             Dictionary<Slot, List<string>> interestingSlots = new Dictionary<Slot, List<string>>();
-            foreach(Slot slot in this.slots)
+            foreach (Slot slot in this.slots)
             {
                 interestingSlots.Add(slot, new List<string>());
             }
 
             // check which slot has a free room, if so, add the participant to the slot list
-            foreach(Slot slot in this.slots)
+            foreach (Slot slot in this.slots)
             {
                 if (this.roomsManager.hasFreeRoomIn(slot.getLocation(), slot.getDate()))
                 {
-                    foreach(string participant in this.participants.Keys)
+                    foreach (string participant in this.participants.Keys)
                     {
                         if (this.participants[participant].Contains(slot))
                         {
@@ -175,17 +171,16 @@ namespace MeetingsScheduleV2
                     }
                 }
             }
-            
+
             // get the slot with highest number of interested participants
             int maxNumberOfParticipants = -1;
-            Room roomWithMaxCapacity = null;
-
             foreach (Slot slot in interestingSlots.Keys)
             {
                 // get all free rooms in the date of the slot
-                // TODO: not working well
                 List<Room> freeRooms = this.roomsManager.getFreeRoomsIn(slot);
+
                 //get the room with highest capacity
+                Room roomWithMaxCapacity = null;
                 int capacity = -1;
                 foreach (Room room in freeRooms)
                 {
@@ -196,55 +191,32 @@ namespace MeetingsScheduleV2
                     }
                 }
 
-                // the number of people who could participate is the min of max room 
-                // capacity and number of interested people
+                // the number of people who could participate is the min of max room capacity and number of interested people
                 int numberOfParticipants = Math.Min(capacity, interestingSlots[slot].Count);
-                
-                if (numberOfParticipants  > maxNumberOfParticipants)
+
+
+                if (numberOfParticipants > maxNumberOfParticipants)
                 {
                     this.selectedSlot = slot;
-                    this.finalParticipants = interestingSlots[this.selectedSlot];
                     this.selectedRoom = roomWithMaxCapacity;
                     maxNumberOfParticipants = numberOfParticipants;
                 }
-            }
-
-            if (this.selectedRoom == null)
-            {
-                this.selectedSlot = null;
-                this.cancel();
             }
 
             if (maxNumberOfParticipants < this.min_attendees)
             {
                 this.selectedSlot = null;
                 this.cancel();
-                return;
             }
 
-            // if number of participants is higher than the room capacity, 
-            // exclude some of them, policy is not decided yet TODO
+            // if number of participants is higher than the room capacity, exclude some of them, policy is not decided yet TODO
             if (this.finalParticipants.Count > this.selectedRoom.getCapacity())
             {
                 this.finalParticipants = this.finalParticipants.GetRange(0, this.selectedRoom.getCapacity());
             }
-            
+
             this.closed = true;
-
         }
-
-        public bool hasInvitedClient(string client)
-        {
-            if(this.invitees == null)
-            {
-                return true;
-            }
-            else
-            {
-                return this.invitees.Contains(client);
-            }
-        }
-
     }
 
     [Serializable]
@@ -332,12 +304,11 @@ namespace MeetingsScheduleV2
     public interface ServerInterface
     {
         int execute(CreateCommand command);
-        int execute(ListCommand command);
+        List<MeetingProposal> execute(ListCommand command);
         int execute(JoinCommand command);
         int execute(CloseCommand command);
         int execute(WaitCommand command);
         int execute(NotFoundCommand command);
-
         void addRoom(Room room);
         void crash();
         int status();
@@ -360,25 +331,25 @@ namespace MeetingsScheduleV2
 
             List<Slot> slots = new List<Slot>();
 
-            for(int i = 0; i < nr_slots; i++)
+            for (int i = 0; i < nr_slots; i++)
             {
                 string slot_info = instruction[i + 5];
-
                 char[] delimiter = { ',' };
                 string[] slot_infos = slot_info.Split(delimiter, StringSplitOptions.RemoveEmptyEntries);
-
                 string location = slot_infos[0];
                 DateTime date = DateTime.Parse(slot_infos[1]);
                 slots.Add(new Slot(location, date));
             }
 
-            List<string> invitees = null;
-            if (nr_invitees > 0)            {
+            List<string> invitees = new List<string>();
+            if (nr_invitees == 0)
+            {
+                invitees = null;
+            }
+
+            else
+            {
                 invitees = new List<string>();
-                for (int i = 0; i < nr_invitees; i++)
-                {
-                    invitees.Add(instruction[i + nr_slots + 5]);
-                }
             }
 
             CreateCommand command = new CreateCommand(topic, min_attendees, nr_slots, nr_invitees, slots, invitees);
@@ -396,7 +367,7 @@ namespace MeetingsScheduleV2
             string topic = instruction[1];
             int nr_desired_slots = Int32.Parse(instruction[2]);
             List<Slot> desiredSlots = new List<Slot>();
-            for(int i = 0; i < nr_desired_slots; i++)
+            for (int i = 0; i < nr_desired_slots; i++)
             {
                 string desiredSlotInfo = instruction[i + 3];
                 char[] delimiter = { ',' };
@@ -427,7 +398,7 @@ namespace MeetingsScheduleV2
     public abstract class Command
     {
         private string issuerId;
-        private bool sentByClient;
+        private string type;
 
         public Command()
         {
@@ -443,21 +414,11 @@ namespace MeetingsScheduleV2
             this.issuerId = issuerId;
         }
 
-        public void setSentByClient(bool sentByClient) 
-        {
-            this.sentByClient = sentByClient;
-        }
-
-        public bool isSentByClient()
-        {
-            return this.sentByClient;
-        }
-
         public abstract string getType();
     }
 
     [Serializable]
-    public class CreateCommand: Command
+    public class CreateCommand : Command
     {
         string topic;
         int min_attendees;

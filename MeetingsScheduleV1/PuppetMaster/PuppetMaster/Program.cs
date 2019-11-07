@@ -9,7 +9,7 @@ using System.Runtime.Remoting.Channels.Tcp;
 
 namespace MeetingsSchedule
 {
-    public class PuppetMasterObject : MarshalByRefObject, PuppetMasterInterface
+    public class PuppetMasterObject : MarshalByRefObject
     {
     }
 

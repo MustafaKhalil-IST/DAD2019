@@ -2,15 +2,16 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Runtime.Remoting;
+using System.Runtime.Remoting.Messaging;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Tcp;
-using System.Runtime.Remoting.Messaging;
 using System.IO;
 using System.Text.RegularExpressions;
 
-namespace MeetingsScheduleV2
+namespace MeetingsSchedule
 {
     class Client
     {
@@ -18,8 +19,9 @@ namespace MeetingsScheduleV2
 
         public delegate int RemoteAsyncDelegate(Command command);
 
-        public static void ClientRemoteAsyncCallBack(IAsyncResult ar)
+        public static void OurRemoteAsyncCallBack(IAsyncResult ar)
         {
+            // Alternative 2: Use the callback to get the return value
             RemoteAsyncDelegate del = (RemoteAsyncDelegate)((AsyncResult)ar).AsyncDelegate;
             Console.WriteLine("\r\n**SUCCESS**: Result of the remote AsyncCallBack: " + del.EndInvoke(ar));
             return;
@@ -27,32 +29,32 @@ namespace MeetingsScheduleV2
 
         static void Main(string[] args)
         {
-            string username = args[0];
-            string client_url = args[1];
-            string server_url = args[2];
+            string myId = args[0];
+            string url = args[1];
 
             Regex r = new Regex(@"^(?<protocol>\w+)://[^/]+?:(?<port>\d+)?/",
                           RegexOptions.None, TimeSpan.FromMilliseconds(100));
-            Match m = r.Match(client_url);
+            Match m = r.Match(url);
             int port = Int32.Parse(m.Result("${port}"));
+
+            myId += "-" + url;
 
             TcpChannel channel = new TcpChannel(port);
             ClientObject client = new ClientObject();
             RemotingServices.Marshal(client, "ClientObject", typeof(ClientObject));
 
             ChannelServices.RegisterChannel(channel, false);
-            ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), server_url);
+            ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface),
+                                                                           "tcp://localhost:8086/ServerObject");
             if (server == null)
-                // Contact another server : TODO
                 System.Console.WriteLine("Could not locate server");
             else
             {
                 System.Console.WriteLine("Found");
+
                 InstructsParser parser = new InstructsParser();
 
-                // To change
-                // string clientScript = @"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV2\" + args[3];
-                string clientScript = args[3];
+                string clientScript = @"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV1\" + args[2];
 
                 string[] lines = File.ReadAllLines(clientScript);
 
@@ -61,28 +63,38 @@ namespace MeetingsScheduleV2
                     char[] delimiter = { ' ' };
                     string[] instructionParts = line.Split(delimiter, StringSplitOptions.RemoveEmptyEntries);
 
-                    string myId = username + "-" + client_url;
                     if (instructionParts[0] == "create")
                     {
                         CreateCommand command = parser.parseCreateCommand(instructionParts, myId);
                         command.setIssuerId(myId);
-                        command.setSentByClient(true);
                         Console.WriteLine(command.getType());
                         server.execute(command);
-                    } 
+                    }
                     else if (instructionParts[0] == "list")
                     {
                         ListCommand command = parser.parseListCommand(instructionParts);
                         command.setIssuerId(myId);
-                        command.setSentByClient(true);
                         Console.WriteLine(command.getType());
-                        server.execute(command);
+                        List<MeetingProposal> proposals = server.execute(command);
+
+                        foreach (MeetingProposal meeting in proposals)
+                        {
+                            string closed = "Open";
+                            if (meeting.isClosed())
+                            {
+                                closed = "Closed";
+                            }
+                            if (meeting.isCancelled())
+                            {
+                                closed = "Cancelled";
+                            }
+                            Console.WriteLine(meeting.getCoordinator() + " " + meeting.getTopic() + " - " + closed);
+                        }
                     }
                     else if (instructionParts[0] == "join")
                     {
                         JoinCommand command = parser.parseJoinCommand(instructionParts);
                         command.setIssuerId(myId);
-                        command.setSentByClient(true);
                         Console.WriteLine(command.getType());
                         server.execute(command);
                     }
@@ -90,7 +102,6 @@ namespace MeetingsScheduleV2
                     {
                         CloseCommand command = parser.parseCloseCommand(instructionParts);
                         command.setIssuerId(myId);
-                        command.setSentByClient(true);
                         Console.WriteLine(command.getType());
                         server.execute(command);
                     }
@@ -98,10 +109,10 @@ namespace MeetingsScheduleV2
                     {
                         WaitCommand command = parser.parseWaitCommand(instructionParts);
                         command.setIssuerId(myId);
-                        command.setSentByClient(true);
                         Console.WriteLine(command.getType());
                         server.execute(command);
-                    } else
+                    }
+                    else
                     {
                         NotFoundCommand command = new NotFoundCommand();
                         Console.WriteLine(command.getType());
@@ -125,7 +136,7 @@ namespace MeetingsScheduleV2
 
         public void listMeetings(List<MeetingProposal> meetings)
         {
-            foreach(MeetingProposal meeting in meetings)
+            foreach (MeetingProposal meeting in meetings)
             {
                 string closed = "Open";
                 if (meeting.isClosed())

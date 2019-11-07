@@ -23,7 +23,7 @@ namespace MeetingsSchedule
             InitializeComponent();
             this.nodes = new List<string>();
         }
-
+      
         private void execute(object sender, EventArgs e)
         {
             string instruction = this.instruction.Text;
@@ -49,29 +49,29 @@ namespace MeetingsSchedule
 
             if (instructionParts[0] == "Server")
             {
-                //Process.Start(@"..\..\..\..\Server.exe");
+                Process.Start(@"Server.exe");
                 // To change 
-                Process.Start(@"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV1\Server.exe");
+                // Process.Start(@"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV1\Server.exe");
                 this.nodes.Add("tcp://localhost:8086/ServerObject");
                 this.results.Items.Add("Server added\n");
             }
             else if (instructionParts[0] == "Client")
             {
                 string username = instructionParts[1];
-                string port = instructionParts[2];
+                string url = instructionParts[2];
                 string script = instructionParts[3];
-                string args = username + " " + port + " " + script;
-                // Process.Start(@"..\..\..\..\Client.exe", args);
+                string args = username + " " + url + " " + script;
+                Process.Start(@"Client.exe", args);
                 // To change 
-                Process.Start(@"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV1\Client.exe", args);
-                this.nodes.Add("tcp://localhost:" + port + "/ClientObject");
+                // Process.Start(@"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV1\Client.exe", args);
+                this.nodes.Add(url);
                 this.results.Items.Add("Client added\n");
             }
             else if (instructionParts[0] == "AddRoom")
             {
-                string roomId = instructionParts[1];
-                string location = instructionParts[2];
-                int capacity = Int32.Parse(instructionParts[3]);
+                string location = instructionParts[1];
+                int capacity = Int32.Parse(instructionParts[2]);
+                string roomId = instructionParts[3];
                 Room room = new Room(roomId, location, capacity);
                 ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface),
                                                                            "tcp://localhost:8086/ServerObject");
@@ -166,6 +166,5 @@ namespace MeetingsSchedule
                 this.errorMessage.Text = "error";
             }
         }
-
     }
 }
