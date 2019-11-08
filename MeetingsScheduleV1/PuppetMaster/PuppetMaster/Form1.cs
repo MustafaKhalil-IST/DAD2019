@@ -49,18 +49,26 @@ namespace MeetingsSchedule
 
             if (instructionParts[0] == "Server")
             {
-                Process.Start(@"Server.exe");
+                string id = instructionParts[1];
+                string url = instructionParts[2];
+                string max_faults = instructionParts[3];
+                string min_delay = instructionParts[4];
+                string max_delay = instructionParts[5];
+
+                string args = id + " " + url + " " + max_faults + " " + min_delay + " " + max_delay;
+                Process.Start(@"Server.exe", args);
                 // To change 
                 // Process.Start(@"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV1\Server.exe");
-                this.nodes.Add("tcp://localhost:8086/ServerObject");
+                this.nodes.Add(url);
                 this.results.Items.Add("Server added\n");
             }
             else if (instructionParts[0] == "Client")
             {
                 string username = instructionParts[1];
                 string url = instructionParts[2];
-                string script = instructionParts[3];
-                string args = username + " " + url + " " + script;
+                string server_url = instructionParts[3];
+                string script = instructionParts[4];
+                string args = username + " " + url + " " + server_url + " " + script;
                 Process.Start(@"Client.exe", args);
                 // To change 
                 // Process.Start(@"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV1\Client.exe", args);

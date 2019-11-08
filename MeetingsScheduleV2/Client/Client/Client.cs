@@ -16,14 +16,11 @@ namespace MeetingsScheduleV2
     {
         private bool isFrozen = false;
 
-        public delegate int RemoteAsyncDelegate(Command command);
-
-        public static void ClientRemoteAsyncCallBack(IAsyncResult ar)
-        {
-            RemoteAsyncDelegate del = (RemoteAsyncDelegate)((AsyncResult)ar).AsyncDelegate;
-            Console.WriteLine("\r\n**SUCCESS**: Result of the remote AsyncCallBack: " + del.EndInvoke(ar));
-            return;
-        }
+        public delegate int CreateRemoteAsyncDelegate(CreateCommand command);
+        public delegate List<MeetingProposal> ListRemoteAsyncDelegate(ListCommand command);
+        public delegate int JoinRemoteAsyncDelegate(JoinCommand command);
+        public delegate int CloseRemoteAsyncDelegate(CloseCommand command);
+        public delegate int WaitRemoteAsyncDelegate(WaitCommand command);
 
         static void Main(string[] args)
         {
@@ -68,7 +65,13 @@ namespace MeetingsScheduleV2
                         command.setIssuerId(myId);
                         command.setSentByClient(true);
                         Console.WriteLine(command.getType());
-                        server.execute(command);
+
+                        CreateRemoteAsyncDelegate RemoteDel = new CreateRemoteAsyncDelegate(server.execute);
+                        IAsyncResult RemAr = RemoteDel.BeginInvoke(command, null, null);
+                        RemAr.AsyncWaitHandle.WaitOne();
+                        Console.WriteLine(RemoteDel.EndInvoke(RemAr));
+
+                        //server.execute(command);
                     } 
                     else if (instructionParts[0] == "list")
                     {
@@ -76,7 +79,27 @@ namespace MeetingsScheduleV2
                         command.setIssuerId(myId);
                         command.setSentByClient(true);
                         Console.WriteLine(command.getType());
-                        server.execute(command);
+
+                        ListRemoteAsyncDelegate RemoteDel = new ListRemoteAsyncDelegate(server.execute);
+                        IAsyncResult RemAr = RemoteDel.BeginInvoke(command, null, null);
+                        RemAr.AsyncWaitHandle.WaitOne();
+                        List<MeetingProposal> proposals = RemoteDel.EndInvoke(RemAr);
+
+                        // List<MeetingProposal> proposals = server.execute(command);
+
+                        foreach (MeetingProposal meeting in proposals)
+                        {
+                            string closed = "Open";
+                            if (meeting.isClosed())
+                            {
+                                closed = "Closed";
+                            }
+                            if (meeting.isCancelled())
+                            {
+                                closed = "Cancelled";
+                            }
+                            Console.WriteLine(meeting.getCoordinator() + " " + meeting.getTopic() + " - " + closed);
+                        }
                     }
                     else if (instructionParts[0] == "join")
                     {
@@ -84,7 +107,13 @@ namespace MeetingsScheduleV2
                         command.setIssuerId(myId);
                         command.setSentByClient(true);
                         Console.WriteLine(command.getType());
-                        server.execute(command);
+
+                        JoinRemoteAsyncDelegate RemoteDel = new JoinRemoteAsyncDelegate(server.execute);
+                        IAsyncResult RemAr = RemoteDel.BeginInvoke(command, null, null);
+                        RemAr.AsyncWaitHandle.WaitOne();
+                        Console.WriteLine(RemoteDel.EndInvoke(RemAr));
+
+                        // server.execute(command);
                     }
                     else if (instructionParts[0] == "close")
                     {
@@ -92,7 +121,13 @@ namespace MeetingsScheduleV2
                         command.setIssuerId(myId);
                         command.setSentByClient(true);
                         Console.WriteLine(command.getType());
-                        server.execute(command);
+
+                        CloseRemoteAsyncDelegate RemoteDel = new CloseRemoteAsyncDelegate(server.execute);
+                        IAsyncResult RemAr = RemoteDel.BeginInvoke(command, null, null);
+                        RemAr.AsyncWaitHandle.WaitOne();
+                        Console.WriteLine(RemoteDel.EndInvoke(RemAr));
+
+                        //server.execute(command);
                     }
                     else if (instructionParts[0] == "wait")
                     {
@@ -100,8 +135,15 @@ namespace MeetingsScheduleV2
                         command.setIssuerId(myId);
                         command.setSentByClient(true);
                         Console.WriteLine(command.getType());
-                        server.execute(command);
-                    } else
+
+                        WaitRemoteAsyncDelegate RemoteDel = new WaitRemoteAsyncDelegate(server.execute);
+                        IAsyncResult RemAr = RemoteDel.BeginInvoke(command, null, null);
+                        RemAr.AsyncWaitHandle.WaitOne();
+                        Console.WriteLine(RemoteDel.EndInvoke(RemAr));
+
+                        //server.execute(command);
+                    }
+                    else
                     {
                         NotFoundCommand command = new NotFoundCommand();
                         Console.WriteLine(command.getType());

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Tcp;
+using System.Text.RegularExpressions;
 
 namespace MeetingsSchedule
 {
@@ -13,10 +14,21 @@ namespace MeetingsSchedule
     {
         static void Main(string[] args)
         {
-            TcpChannel channel = new TcpChannel(8086);
+            string id = args[0];
+            string url = args[1];
+            int max_faults = Int32.Parse(args[2]);
+            int min_delay = Int32.Parse(args[3]);
+            int max_delay = Int32.Parse(args[4]);
+
+            Regex r = new Regex(@"^(?<protocol>\w+)://[^/]+?:(?<port>\d+)?/",
+                          RegexOptions.None, TimeSpan.FromMilliseconds(100));
+            Match m = r.Match(url);
+            int port = Int32.Parse(m.Result("${port}"));
+
+            TcpChannel channel = new TcpChannel(port);
             ChannelServices.RegisterChannel(channel, false);
 
-            ServerObject server = new ServerObject();
+            ServerObject server = new ServerObject(id, url, max_faults, min_delay, max_delay);
             RemotingServices.Marshal(server, "ServerObject", typeof(ServerObject));
 
             System.Console.WriteLine("<enter> to exit...");
@@ -27,10 +39,33 @@ namespace MeetingsSchedule
     class ServerObject : MarshalByRefObject, ServerInterface
     {
         // Private Methods
+        private string id;
+        private string url;
+        private int max_faults;
+        private int min_delay;
+        private int max_delay;
+
         private bool isFrozen = false;
         Dictionary<string, HashSet<MeetingProposal>> meetings = new Dictionary<string, HashSet<MeetingProposal>>();
         RoomsManager roomsManager = new RoomsManager();
         List<Command> frozenCommands = new List<Command>();
+
+        public ServerObject(string id, string url, int max_faults, int min_delay, int max_delay)
+        {
+            this.id = id;
+            this.url = url;
+            this.max_faults = max_faults;
+            this.min_delay = min_delay;
+            this.max_delay = max_delay;
+        }
+
+        private void delay()
+        {
+            Random random = new Random();
+            int milliseconds = random.Next(this.min_delay, this.max_delay);
+            Console.WriteLine("delay: " + milliseconds);
+            System.Threading.Thread.Sleep(milliseconds);
+        }
 
         private void createMeeting(string client_id, MeetingProposal proposal)
         {
@@ -88,6 +123,9 @@ namespace MeetingsSchedule
         // Public Methods
         public int execute(CreateCommand command)
         {
+            // delay 
+            this.delay();
+
             if (this.isFrozen)
             {
                 this.frozenCommands.Add(command);
@@ -103,10 +141,13 @@ namespace MeetingsSchedule
 
         public List<MeetingProposal> execute(ListCommand command)
         {
+            // delay 
+            this.delay();
+
             if (this.isFrozen)
             {
                 this.frozenCommands.Add(command);
-                return null;
+                return new List<MeetingProposal>();
             }
             else
             {
@@ -139,6 +180,9 @@ namespace MeetingsSchedule
 
         public int execute(CloseCommand command)
         {
+            // delay 
+            this.delay();
+
             if (this.isFrozen)
             {
                 this.frozenCommands.Add(command);
@@ -154,6 +198,9 @@ namespace MeetingsSchedule
 
         public int execute(JoinCommand command)
         {
+            // delay 
+            this.delay();
+
             if (this.isFrozen)
             {
                 this.frozenCommands.Add(command);
@@ -169,6 +216,9 @@ namespace MeetingsSchedule
 
         public int execute(WaitCommand command)
         {
+            // delay 
+            this.delay();
+
             if (this.isFrozen)
             {
                 this.frozenCommands.Add(command);
@@ -184,12 +234,16 @@ namespace MeetingsSchedule
 
         public int execute(NotFoundCommand command)
         {
+            // delay 
+            this.delay();
+
             Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
             return 0;
         }
 
         public void addRoom(Room room)
         {
+            Console.WriteLine("Room " + room.getID() + " Added");
             this.roomsManager.addRoom(room);
         }
 

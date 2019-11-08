@@ -17,20 +17,17 @@ namespace MeetingsSchedule
     {
         private bool isFrozen = false;
 
-        public delegate int RemoteAsyncDelegate(Command command);
-
-        public static void OurRemoteAsyncCallBack(IAsyncResult ar)
-        {
-            // Alternative 2: Use the callback to get the return value
-            RemoteAsyncDelegate del = (RemoteAsyncDelegate)((AsyncResult)ar).AsyncDelegate;
-            Console.WriteLine("\r\n**SUCCESS**: Result of the remote AsyncCallBack: " + del.EndInvoke(ar));
-            return;
-        }
+        public delegate int CreateRemoteAsyncDelegate(CreateCommand command);
+        public delegate List<MeetingProposal> ListRemoteAsyncDelegate(ListCommand command);
+        public delegate int JoinRemoteAsyncDelegate(JoinCommand command);
+        public delegate int CloseRemoteAsyncDelegate(CloseCommand command);
+        public delegate int WaitRemoteAsyncDelegate(WaitCommand command);
 
         static void Main(string[] args)
         {
             string myId = args[0];
             string url = args[1];
+            string server_url = args[2];
 
             Regex r = new Regex(@"^(?<protocol>\w+)://[^/]+?:(?<port>\d+)?/",
                           RegexOptions.None, TimeSpan.FromMilliseconds(100));
@@ -44,8 +41,7 @@ namespace MeetingsSchedule
             RemotingServices.Marshal(client, "ClientObject", typeof(ClientObject));
 
             ChannelServices.RegisterChannel(channel, false);
-            ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface),
-                                                                           "tcp://localhost:8086/ServerObject");
+            ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), server_url);
             if (server == null)
                 System.Console.WriteLine("Could not locate server");
             else
@@ -54,7 +50,7 @@ namespace MeetingsSchedule
 
                 InstructsParser parser = new InstructsParser();
 
-                string clientScript = @"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV1\" + args[2];
+                string clientScript = @"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV1\" + args[3];
 
                 string[] lines = File.ReadAllLines(clientScript);
 
@@ -68,14 +64,26 @@ namespace MeetingsSchedule
                         CreateCommand command = parser.parseCreateCommand(instructionParts, myId);
                         command.setIssuerId(myId);
                         Console.WriteLine(command.getType());
-                        server.execute(command);
+
+                        CreateRemoteAsyncDelegate RemoteDel = new CreateRemoteAsyncDelegate(server.execute);
+                        IAsyncResult RemAr = RemoteDel.BeginInvoke(command, null, null);
+                        RemAr.AsyncWaitHandle.WaitOne();
+                        Console.WriteLine(RemoteDel.EndInvoke(RemAr));
+
+                        // server.execute(command);
                     }
                     else if (instructionParts[0] == "list")
                     {
                         ListCommand command = parser.parseListCommand(instructionParts);
                         command.setIssuerId(myId);
                         Console.WriteLine(command.getType());
-                        List<MeetingProposal> proposals = server.execute(command);
+
+                        ListRemoteAsyncDelegate RemoteDel = new ListRemoteAsyncDelegate(server.execute);
+                        IAsyncResult RemAr = RemoteDel.BeginInvoke(command, null, null);
+                        RemAr.AsyncWaitHandle.WaitOne();
+                        List<MeetingProposal> proposals = RemoteDel.EndInvoke(RemAr);
+
+                        // List<MeetingProposal> proposals = server.execute(command);
 
                         foreach (MeetingProposal meeting in proposals)
                         {
@@ -96,21 +104,38 @@ namespace MeetingsSchedule
                         JoinCommand command = parser.parseJoinCommand(instructionParts);
                         command.setIssuerId(myId);
                         Console.WriteLine(command.getType());
-                        server.execute(command);
+
+                        JoinRemoteAsyncDelegate RemoteDel = new JoinRemoteAsyncDelegate(server.execute);
+                        IAsyncResult RemAr = RemoteDel.BeginInvoke(command, null, null);
+                        RemAr.AsyncWaitHandle.WaitOne();
+                        Console.WriteLine(RemoteDel.EndInvoke(RemAr));
+                        // server.execute(command);
                     }
                     else if (instructionParts[0] == "close")
                     {
                         CloseCommand command = parser.parseCloseCommand(instructionParts);
                         command.setIssuerId(myId);
                         Console.WriteLine(command.getType());
-                        server.execute(command);
+
+                        CloseRemoteAsyncDelegate RemoteDel = new CloseRemoteAsyncDelegate(server.execute);
+                        IAsyncResult RemAr = RemoteDel.BeginInvoke(command, null, null);
+                        RemAr.AsyncWaitHandle.WaitOne();
+                        Console.WriteLine(RemoteDel.EndInvoke(RemAr));
+
+                        //server.execute(command);
                     }
                     else if (instructionParts[0] == "wait")
                     {
                         WaitCommand command = parser.parseWaitCommand(instructionParts);
                         command.setIssuerId(myId);
                         Console.WriteLine(command.getType());
-                        server.execute(command);
+
+                        WaitRemoteAsyncDelegate RemoteDel = new WaitRemoteAsyncDelegate(server.execute);
+                        IAsyncResult RemAr = RemoteDel.BeginInvoke(command, null, null);
+                        RemAr.AsyncWaitHandle.WaitOne();
+                        Console.WriteLine(RemoteDel.EndInvoke(RemAr));
+
+                        //server.execute(command);
                     }
                     else
                     {

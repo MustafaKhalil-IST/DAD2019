@@ -148,7 +148,7 @@ namespace MeetingsScheduleV2
             }
         }
 
-        public int execute(ListCommand command)
+        public List<MeetingProposal> execute(ListCommand command)
         {
             // delay 
             this.delay();
@@ -157,7 +157,7 @@ namespace MeetingsScheduleV2
             if (this.isFrozen)
             {
                 this.frozenCommands.Add(command);
-                return 0;
+                return new List<MeetingProposal>();
             }
             else
             {
@@ -176,7 +176,7 @@ namespace MeetingsScheduleV2
                     }
                 }
 
-                char[] delimiter = { '-' };
+                /*char[] delimiter = { '-' };
                 string[] client_info = command.getIssuerId().Split(delimiter, StringSplitOptions.RemoveEmptyEntries);
                 string client_url = client_info[1];
 
@@ -186,8 +186,8 @@ namespace MeetingsScheduleV2
                 else
                 {
                     client.listMeetings(proposals);
-                }
-                return 1;
+                }*/
+                return proposals;
             }
         }
 
@@ -259,6 +259,7 @@ namespace MeetingsScheduleV2
 
         public void addRoom(Room room)
         {
+            Console.WriteLine("Room " + room.getID() + " Added");
             this.roomsManager.addRoom(room);
         }
 

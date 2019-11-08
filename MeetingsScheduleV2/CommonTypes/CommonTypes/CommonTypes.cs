@@ -332,7 +332,7 @@ namespace MeetingsScheduleV2
     public interface ServerInterface
     {
         int execute(CreateCommand command);
-        int execute(ListCommand command);
+        List<MeetingProposal> execute(ListCommand command);
         int execute(JoinCommand command);
         int execute(CloseCommand command);
         int execute(WaitCommand command);
