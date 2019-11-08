@@ -1,1 +1,1 @@
-C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe -target:library .\CommonTypes\CommonTypes.cs
+C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe -target:library .\CommonTypes\CommonTypes\CommonTypes.cs

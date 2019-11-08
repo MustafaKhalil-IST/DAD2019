@@ -1,3 +1,9 @@
+Server server1 tcp://localhost:8086/ServerObject 5 1 2
+Server server2 tcp://localhost:8087/ServerObject 5 1 2
+Server server3 tcp://localhost:8088/ServerObject 5 1 2
+Server server4 tcp://localhost:8089/ServerObject 5 1 2
+AddRoom Lisbon 10 room1
+AddRoom Porto 20 room2
 Client c1 tcp://localhost:8092/ClientObject tcp://localhost:8086/ServerObject scriptclient1.txt
 Client c3 tcp://localhost:8094/ClientObject tcp://localhost:8088/ServerObject scriptclient2.txt
 Client c4 tcp://localhost:8095/ClientObject tcp://localhost:8089/ServerObject scriptclient2.txt

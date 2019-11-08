@@ -1,0 +1,10 @@
+Server server tcp://localhost:8086/ServerObject 5 1000 2000
+AddRoom Lisbon 10 room1
+AddRoom Porto 20 room2
+Client c1 tcp://localhost:8092/ClientObject tcp://localhost:8086/ServerObject scriptclient1.txt
+Client c3 tcp://localhost:8094/ClientObject tcp://localhost:8086/ServerObject scriptclient2.txt
+Client c4 tcp://localhost:8095/ClientObject tcp://localhost:8086/ServerObject scriptclient2.txt
+Client c5 tcp://localhost:8096/ClientObject tcp://localhost:8086/ServerObject scriptclient2.txt
+Client c6 tcp://localhost:8097/ClientObject tcp://localhost:8086/ServerObject scriptclient2.txt
+Client c7 tcp://localhost:8098/ClientObject tcp://localhost:8086/ServerObject scriptclient2.txt
+Client c8 tcp://localhost:8099/ClientObject tcp://localhost:8086/ServerObject scriptclient2.txt
