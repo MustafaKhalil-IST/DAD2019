@@ -20,6 +20,8 @@ namespace MeetingsScheduleV2
     public partial class PuppetMaster : Form
     {
         private List<string> nodes;
+        private Dictionary<string, string> idUrl = new Dictionary<string, string>();
+
         public PuppetMaster()
         {
             InitializeComponent();
@@ -62,6 +64,7 @@ namespace MeetingsScheduleV2
                 // To change 
                 // Process.Start(@"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV2\Server.exe");
                 this.nodes.Add(url);
+                this.idUrl[id] = url;
                 this.results.Items.Add("Server added\n");
             }
             else if (instructionParts[0] == "Client")
@@ -81,6 +84,7 @@ namespace MeetingsScheduleV2
                 // To change 
                 // Process.Start(@"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV2\Client.exe", args);
                 this.nodes.Add(client_url);
+                this.idUrl[username] = client_url;
                 this.results.Items.Add("Client added\n");
             }
             else if (instructionParts[0] == "AddRoom")
@@ -94,8 +98,16 @@ namespace MeetingsScheduleV2
                 {
                     if (node.EndsWith("ServerObject"))
                     {
-                        ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), node);
-                        server.addRoom(room);
+                        try
+                        {
+                            ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), node);
+                            server.addRoom(room);
+                        }
+                        catch (Exception)
+                        {
+                            continue;
+                        }
+                        
                     }
                 }
  
@@ -151,7 +163,7 @@ namespace MeetingsScheduleV2
                 {
                     try
                     {
-                        ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), node);
+                        ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), this.idUrl[node]);
                         server.crash();
                         this.results.Items.Add(node + " crashed");
                     }
@@ -169,13 +181,13 @@ namespace MeetingsScheduleV2
             else if (instructionParts[0] == "Freeze")
             {
                 string node = instructionParts[1];
-                ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), node);
+                ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), this.idUrl[node]);
                 server.freeze();
             }
             else if (instructionParts[0] == "Unfreeze")
             {
                 string node = instructionParts[1];
-                ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), node);
+                ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), this.idUrl[node]);
                 server.unfreeze();
             }
             else if (instructionParts[0] == "Wait")
