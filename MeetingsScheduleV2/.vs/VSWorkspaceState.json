@@ -1,7 +1,15 @@
 {
   "ExpandedNodes": [
-    ""
+    "",
+    "\\Client",
+    "\\Client\\Client",
+    "\\CommonTypes",
+    "\\CommonTypes\\CommonTypes",
+    "\\PuppetMaster",
+    "\\PuppetMaster\\PuppetMaster",
+    "\\Server",
+    "\\Server\\Server"
   ],
-  "SelectedNode": "\\compile_server.bat",
+  "SelectedNode": "\\PuppetMaster\\PuppetMaster\\Form1.cs",
   "PreviewInSolutionExplorer": false
 }

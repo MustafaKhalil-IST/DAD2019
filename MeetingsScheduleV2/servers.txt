@@ -1,6 +1,0 @@
-tcp://localhost:8086/ServerObject
-tcp://localhost:8087/ServerObject
-tcp://localhost:8088/ServerObject
-tcp://localhost:8089/ServerObject
-tcp://localhost:8090/ServerObject
-tcp://localhost:8091/ServerObject

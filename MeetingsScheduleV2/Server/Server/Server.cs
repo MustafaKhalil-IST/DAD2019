@@ -1,12 +1,11 @@
 ﻿using System;
+using System.Threading;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.IO;
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Tcp;
-using System.IO;
 using System.Text.RegularExpressions;
 
 namespace MeetingsScheduleV2
@@ -15,12 +14,14 @@ namespace MeetingsScheduleV2
     {
         static void Main(string[] args)
         {
+            // server information
             string id = args[0];
             string url = args[1];
             int max_faults = Int32.Parse(args[2]);
             int min_delay = Int32.Parse(args[3]);
             int max_delay = Int32.Parse(args[4]);
 
+            // establish connection
             Regex r = new Regex(@"^(?<protocol>\w+)://[^/]+?:(?<port>\d+)?/",
                           RegexOptions.None, TimeSpan.FromMilliseconds(100));
             Match m = r.Match(url);
@@ -32,8 +33,8 @@ namespace MeetingsScheduleV2
             ServerObject server = new ServerObject(id, url, max_faults, min_delay, max_delay);
             RemotingServices.Marshal(server, "ServerObject", typeof(ServerObject));
 
-            System.Console.WriteLine("<enter> to exit...");
-            System.Console.ReadLine();
+            Console.WriteLine("<enter> to exit...");
+            Console.ReadLine();
         }
     }
 
@@ -50,7 +51,17 @@ namespace MeetingsScheduleV2
         Dictionary<string, HashSet<MeetingProposal>> meetings = new Dictionary<string, HashSet<MeetingProposal>>();
         RoomsManager roomsManager = new RoomsManager();
         List<Command> frozenCommands = new List<Command>();
-        string[] serversURLs;
+
+        // a server is aware of all servers and its clients
+        SortedSet<string> servers = new SortedSet<string>();
+        SortedSet<string> clients = new SortedSet<string>();
+
+        // intra-servers communication
+        public delegate int CreateRemoteAsyncDelegate(CreateCommand command);
+        public delegate List<MeetingProposal> ListRemoteAsyncDelegate(ListCommand command);
+        public delegate int JoinRemoteAsyncDelegate(JoinCommand command);
+        public delegate int CloseRemoteAsyncDelegate(CloseCommand command);
+        public delegate int WaitRemoteAsyncDelegate(WaitCommand command);
 
         public ServerObject(string id, string url, int max_faults, int min_delay, int max_delay)
         {
@@ -61,35 +72,107 @@ namespace MeetingsScheduleV2
             this.max_delay = max_delay;
 
             string serversList = "servers.txt";
-            this.serversURLs = File.ReadAllLines(serversList);
+            string[] lines = File.ReadAllLines(serversList);
+            foreach (string line in lines)
+            {
+                this.servers.Add(line);
+            }
+        }
+
+        private MeetingProposal restoreLostMeeting(string topic)
+        {
+            Console.WriteLine("Restoring " + topic);
+            string serversList = "servers.txt";
+            string[] serversURLs = File.ReadAllLines(serversList);
+            foreach (string url in serversURLs)
+            {
+                ServerObject server = (ServerObject)Activator.GetObject(typeof(ServerObject), url);
+                if (server != null)
+                {
+                    MeetingProposal proposal = server.getMeetingByTopic(topic);
+                    MeetingProposal proposal_copy = new MeetingProposal(proposal);
+
+                    if (proposal_copy != null)
+                    {
+                        this.createMeeting(proposal_copy.getCoordinator(), proposal_copy);
+                        return proposal_copy;
+                    }
+                }
+            }
+            return null;
         }
 
         private void createMeeting(string client_id, MeetingProposal proposal)
         {
+            Monitor.Enter(this.meetings);
             proposal.setRoomsManager(this.roomsManager);
-            
+
             if (!this.meetings.ContainsKey(client_id))
             {
                 this.meetings[client_id] = new HashSet<MeetingProposal>();
-            } 
-            this.meetings[client_id].Add(proposal);
+            }
+
+            bool already_exists = false;
+            foreach (MeetingProposal meetingProposal in this.meetings[client_id])
+            {
+                if (meetingProposal.getTopic() == proposal.getTopic())
+                {
+                    already_exists = true;
+                    break;
+                }
+            }
+
+            if (!already_exists)
+            {
+                this.meetings[client_id].Add(proposal);
+            }
+            else
+            {
+                // merge two meetings
+                MeetingProposal original = null;
+                foreach (MeetingProposal meetingProposal in this.meetings[client_id])
+                {
+                    if (meetingProposal.getTopic() == proposal.getTopic())
+                    {
+                        original = meetingProposal;
+                        this.meetings[client_id].Remove(meetingProposal);
+                        break;
+                    }
+                }
+                original = this.mergeTwoMeetings(original, proposal);
+                this.meetings[client_id].Add(original);
+
+            }
+            Monitor.Exit(this.meetings);
         }
 
         // Private Methods
+        private MeetingProposal mergeTwoMeetings(MeetingProposal proposal1, MeetingProposal proposal2)
+        {
+            Console.WriteLine("merging meetings");
+            foreach (string participant in proposal1.getParticipants().Keys)
+            {
+                if (!proposal2.getParticipants().ContainsKey(participant))
+                {
+                    proposal2.addParticipant(participant, proposal1.getParticipants()[participant]);
+                }
+            }
+            return proposal2;
+        }
 
         private void delay()
         {
             Random random = new Random();
             int milliseconds = random.Next(this.min_delay, this.max_delay);
             Console.WriteLine("delay: " + milliseconds);
-            System.Threading.Thread.Sleep(milliseconds);
+            Thread.Sleep(milliseconds);
         }
 
-        private MeetingProposal getMeetingByTopic(string topic)
+        public MeetingProposal getMeetingByTopic(string topic)
         {
-            foreach(string client_id in this.meetings.Keys)
+            foreach (string client_id in this.meetings.Keys)
             {
-                foreach(MeetingProposal proposal in this.meetings[client_id])
+                foreach (MeetingProposal proposal in this.meetings[client_id])
                 {
                     if (proposal.getTopic() == topic)
                     {
@@ -102,27 +185,30 @@ namespace MeetingsScheduleV2
 
         private void joinMeeting(string client_id, MeetingProposal proposal, List<Slot> desiredSlots)
         {
+            Monitor.Enter(this.meetings);
             // client cannot join a meeting if it is closed or cancelled
             if (proposal.isClosed() || proposal.isCancelled())
             {
                 return;
             }
             proposal.addParticipant(client_id, desiredSlots);
+            Console.WriteLine(client_id + " joined " + proposal.getTopic());
+            Monitor.Exit(this.meetings);
         }
 
-        private void closeMeeting(string client_id, string topic)
+        private MeetingProposal closeMeeting(string client_id, string topic)
         {
+            Monitor.Enter(this.meetings);
             MeetingProposal proposal = this.getMeetingByTopic(topic);
-            proposal.close();
             
-            /*foreach(MeetingProposal proposal in this.meetings[client_id])
+            if(proposal == null)
             {
-                if(proposal.getTopic() == topic)
-                {
-                    proposal.close();
-                    break;
-                }
-            }*/
+                return null;
+            }
+
+            proposal.close();
+            Monitor.Exit(this.meetings);
+            return proposal;
         }
 
         // Public Methods
@@ -134,11 +220,16 @@ namespace MeetingsScheduleV2
             if (this.isFrozen)
             {
                 this.frozenCommands.Add(command);
+
+                while (true)
+                {
+                    // freeze
+                }
+
                 return 0;
             }
-            else 
+            else
             {
-                //TODO delay here
                 Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
                 this.createMeeting(command.getIssuerId(), command.getMeetingProposal());
 
@@ -153,10 +244,15 @@ namespace MeetingsScheduleV2
             // delay 
             this.delay();
 
-            // maybe it should return list instead of int
             if (this.isFrozen)
             {
                 this.frozenCommands.Add(command);
+
+                while (true)
+                {
+                    // freeze
+                }
+
                 return new List<MeetingProposal>();
             }
             else
@@ -176,35 +272,46 @@ namespace MeetingsScheduleV2
                     }
                 }
 
-                /*char[] delimiter = { '-' };
-                string[] client_info = command.getIssuerId().Split(delimiter, StringSplitOptions.RemoveEmptyEntries);
-                string client_url = client_info[1];
-
-                ClientInterface client = (ClientInterface)Activator.GetObject(typeof(ServerInterface), client_url);
-                if (client == null)
-                    System.Console.WriteLine("Could not locate client " + command.getIssuerId());
-                else
-                {
-                    client.listMeetings(proposals);
-                }*/
                 return proposals;
             }
         }
 
         public int execute(CloseCommand command)
         {
+            //TODO: check causal consistency and total order
+
             // delay 
             this.delay();
 
             if (this.isFrozen)
             {
                 this.frozenCommands.Add(command);
+
+                while (true)
+                {
+                    // freeze
+                }
+
                 return 0;
             }
             else
             {
                 Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
-                this.closeMeeting(command.getIssuerId(), command.getTopic());
+                MeetingProposal meeting = this.closeMeeting(command.getIssuerId(), command.getTopic());
+
+                if (meeting == null)
+                {
+                    meeting = this.restoreLostMeeting(command.getTopic());
+                    
+                    if (meeting == null)
+                    {
+                        Console.WriteLine("Meeting not found");
+                        return 0;
+                    }
+                }
+
+                meeting.setClosingTimestamp(command.getTimestamp());
+                meeting.close();
 
                 this.informOtherServers(command);
 
@@ -214,18 +321,57 @@ namespace MeetingsScheduleV2
 
         public int execute(JoinCommand command)
         {
+
             // delay 
             this.delay();
 
             if (this.isFrozen)
             {
                 this.frozenCommands.Add(command);
+
+                while (true)
+                {
+                    // freeze
+                }
+
                 return 0;
             }
             else
             {
-                Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
-                this.joinMeeting(command.getIssuerId(), this.getMeetingByTopic(command.getTopic()), command.getDesiredSlots());
+                Console.WriteLine("Recieved " + command.getType() + "-" +
+                    command.getSequenceNumber() + " command from " + command.getIssuerId());
+
+                MeetingProposal meeting = this.getMeetingByTopic(command.getTopic());
+
+                if (meeting == null)
+                {
+                    Console.WriteLine("Meeting {0} not found, Contacting other servers ...", command.getTopic());
+                    meeting = this.restoreLostMeeting(command.getTopic());
+
+                    // Console.WriteLine("Meeting {0} not found, Waiting ...");
+                    // Thread.Sleep(2000);
+
+                    if (meeting == null)
+                    {
+                        Console.WriteLine("Meeting {0} not found", command.getTopic());
+                        return 0;
+                    }
+                }
+
+                if (meeting.isClosed() || meeting.isCancelled())
+                {
+                    // a client can join a closed meeting if it was joined before the closing momment
+                    if (command.getTimestamp().CompareTo(meeting.getClosingTimestamp()) < 0)
+                    {
+                        meeting.open();
+                        this.joinMeeting(command.getIssuerId(), meeting, command.getDesiredSlots());
+                        meeting.close();
+                    }
+                }
+                else
+                {
+                    this.joinMeeting(command.getIssuerId(), meeting, command.getDesiredSlots());
+                }
 
                 this.informOtherServers(command);
 
@@ -241,12 +387,18 @@ namespace MeetingsScheduleV2
             if (this.isFrozen)
             {
                 this.frozenCommands.Add(command);
+
+                while (true)
+                {
+                    // freeze
+                }
+
                 return 0;
             }
             else
             {
                 Console.WriteLine("Recieved " + command.getType() + " command from " + command.getIssuerId());
-                System.Threading.Thread.Sleep(command.getMilliseconds());
+                Thread.Sleep(command.getMilliseconds());
                 return 0;
             }
         }
@@ -274,7 +426,7 @@ namespace MeetingsScheduleV2
             Console.WriteLine("Status - Rooms");
             foreach (string location in this.roomsManager.getRooms().Keys)
             {
-                foreach(Room room in this.roomsManager.getRooms()[location])
+                foreach (Room room in this.roomsManager.getRooms()[location])
                 {
                     Console.WriteLine("Room " + room.getID() + " " + room.getLocation() + " " + room.getCapacity());
                 }
@@ -287,8 +439,12 @@ namespace MeetingsScheduleV2
                 {
                     Console.WriteLine("Meeting " + meeting.getTopic());
                     Console.WriteLine(" -- Coordinator " + meeting.getCoordinator());
+                    if (meeting.getSelectedRoom() != null)
+                    {
+                        Console.WriteLine(" -- Selected Room " + meeting.getSelectedRoom().getLocation() + " " + meeting.getSelectedRoom().getID());
+                    }
                     Console.WriteLine(" -- Participants");
-                    foreach(string participant in meeting.getParticipants().Keys)
+                    foreach (string participant in meeting.getFinalParticipants())
                     {
                         Console.WriteLine(" ---- " + participant);
                     }
@@ -305,9 +461,18 @@ namespace MeetingsScheduleV2
             Console.WriteLine("Unfreeze");
             this.isFrozen = false;
 
-            for(int i = 0; i < this.frozenCommands.Count; i++)
+            // avoid executing repeated commands
+            SortedSet<Command> executedCommands = new SortedSet<Command>();
+
+            for (int i = 0; i < this.frozenCommands.Count; i++)
             {
                 Command command = this.frozenCommands[i];
+
+                if(executedCommands.Contains(command))
+                {
+                    Console.WriteLine(command.commandId() + " is duplicated, will not be executed");
+                    continue;
+                }
 
                 if (command.getType() == "CREATE")
                 {
@@ -335,7 +500,7 @@ namespace MeetingsScheduleV2
                     this.execute(c);
                 }
 
-                this.informOtherServers(command);
+                executedCommands.Add(command);
             }
             this.frozenCommands = new List<Command>();
         }
@@ -348,11 +513,14 @@ namespace MeetingsScheduleV2
 
         public void informOtherServers(Command command)
         {
+            Console.WriteLine("Inform other servers");
+
+            // passive replication strategy
             if (command.isSentByClient())
             {
                 if (command.getType() == "CREATE" || command.getType() == "JOIN" || command.getType() == "CLOSE")
                 {
-                    foreach (string serverURL in this.serversURLs)
+                    foreach (string serverURL in this.servers)
                     {
                         // TODO Asynchronous calls maybe a better idea
                         if (serverURL != this.url)
@@ -364,21 +532,30 @@ namespace MeetingsScheduleV2
                                 {
                                     case "CREATE":
                                         command.setSentByClient(false);
-                                        server.execute((CreateCommand)command);
+                                        CreateRemoteAsyncDelegate RemoteDel = new CreateRemoteAsyncDelegate(server.execute);
+                                        IAsyncResult RemAr = RemoteDel.BeginInvoke((CreateCommand)command, null, null);
+
+                                        // server.execute((CreateCommand)command);
                                         break;
                                     case "JOIN":
                                         command.setSentByClient(false);
-                                        server.execute((JoinCommand)command);
+                                        JoinRemoteAsyncDelegate RemoteDel2 = new JoinRemoteAsyncDelegate(server.execute);
+                                        IAsyncResult RemAr2 = RemoteDel2.BeginInvoke((JoinCommand)command, null, null);
+
+                                        // server.execute((JoinCommand)command);
                                         break;
                                     case "CLOSE":
                                         command.setSentByClient(false);
-                                        server.execute((CloseCommand)command);
+                                        CloseRemoteAsyncDelegate RemoteDel3 = new CloseRemoteAsyncDelegate(server.execute);
+                                        IAsyncResult RemAr3 = RemoteDel3.BeginInvoke((CloseCommand)command, null, null);
+
+                                        // server.execute((CloseCommand)command);
                                         break;
                                     default:
                                         break;
                                 }
                             }
-                            catch (Exception e)
+                            catch (Exception)
                             {
                                 Console.WriteLine(serverURL + " FAULT");
                                 // Faults tolerance TODO
@@ -387,6 +564,57 @@ namespace MeetingsScheduleV2
                     }
                 }
             }
+        }
+
+        // Gossip
+        public List<string> suggestClientsForGossip(MeetingProposal meeting)
+        {
+            List<string> result = new List<string>();
+            List<string> invitees = meeting.getInvitees();
+
+            if (invitees != null)
+            {
+                foreach (string client in this.clients)
+                {
+                    foreach(string invitee in invitees)
+                    { 
+                        if (client.StartsWith(invitee))
+                        {
+                            result.Add(client);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                foreach (string client in this.clients)
+                {
+                    char[] delimiter = { '-' };
+                    string[] clientInfo = client.Split(delimiter, StringSplitOptions.RemoveEmptyEntries);
+                    result.Add(clientInfo[0]);
+                }
+            }
+
+            return result;
+        }
+
+        public delegate int PullRemoteAsyncDelegate(MeetingProposal proposal);
+
+        public void addClient(string client)
+        {
+            this.clients.Add(client);
+            Console.WriteLine("Client " + client + " is connected");
+        }
+
+        public string getRandomClient()
+        {
+            Random rnd = new Random();
+            List<string> temp = new List<string>();
+            foreach(string client in this.clients)
+            {
+                temp.Add(client);
+            }
+            return temp[rnd.Next(0, temp.Count)];
         }
     }
 }

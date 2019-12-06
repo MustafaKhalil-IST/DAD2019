@@ -1,0 +1,12 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\Client",
+    "\\CommonTypes",
+    "\\PuppetMaster",
+    "\\PuppetMaster\\PuppetMaster",
+    "\\Server"
+  ],
+  "SelectedNode": "\\PuppetMaster\\PuppetMaster.sln",
+  "PreviewInSolutionExplorer": false
+}

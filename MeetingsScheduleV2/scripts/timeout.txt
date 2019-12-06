@@ -1,0 +1,9 @@
+Server s1 tcp://localhost:3001/ServerObject 0 500 1000
+Server s2 tcp://localhost:3002/ServerObject 0 0 0
+Server s3 tcp://localhost:3003/ServerObject 0 0 1000
+AddRoom Lisboa 5 room1
+AddRoom Porto 5 room2
+Freeze tcp://localhost:3001/ServerObject
+Client c1 tcp://localhost:4001/ClientObject tcp://localhost:3001/ServerObject cs15.txt
+Wait 20000
+Unfreeze tcp://localhost:3001/ServerObject

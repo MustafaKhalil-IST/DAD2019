@@ -75,15 +75,33 @@ namespace MeetingsScheduleV2
         private string topic;
         private int min_attendees;
         private List<Slot> slots;
-        private List<string> invitees;
+        private List<string> invitees = null;
         private bool closed;
         private bool cancelled;
+        private DateTime closingTimestamp;
 
         private Slot selectedSlot;
         private Dictionary<string, List<Slot>> participants;
         private RoomsManager roomsManager;
         private List<string> finalParticipants;
         private Room selectedRoom;
+
+        public MeetingProposal(MeetingProposal proposal)
+        {
+            this.coordinator = proposal.getCoordinator();
+            this.topic = proposal.getTopic();
+            this.min_attendees = proposal.min_attendees;
+            this.slots = proposal.getSlots();
+            this.invitees = proposal.invitees;
+            this.closed = proposal.isClosed();
+            this.cancelled = proposal.isCancelled();
+            this.participants = proposal.getParticipants();
+            this.finalParticipants = proposal.getFinalParticipants();
+            this.closingTimestamp = proposal.getClosingTimestamp();
+            this.selectedRoom = proposal.selectedRoom;
+            this.selectedSlot = proposal.selectedSlot;
+            this.roomsManager = proposal.roomsManager;
+        }
 
         public MeetingProposal(string coordinator, string topic, int min_attendees,
                                List<Slot> slots, List<string> invitees)
@@ -101,9 +119,24 @@ namespace MeetingsScheduleV2
             this.selectedRoom = null;
         }
 
+        public List<string> getInvitees()
+        {
+            return this.invitees;
+        }
+
         public void setCoordinator(string coordinator)
         {
             this.coordinator = coordinator;
+        }
+
+        public void setClosingTimestamp(DateTime closingTimestamp)
+        {
+            this.closingTimestamp = closingTimestamp;
+        }
+
+        public DateTime getClosingTimestamp()
+        {
+            return this.closingTimestamp;
         }
 
         public void setRoomsManager(RoomsManager roomsManager)
@@ -141,15 +174,34 @@ namespace MeetingsScheduleV2
             return this.participants;
         }
 
+        public List<string> getFinalParticipants()
+        {
+            if (this.finalParticipants.Count == 0)
+            {
+                return this.participants.Keys.ToList();
+            }
+            return this.finalParticipants;
+        }
+
 
         public void addParticipant(string participant, List<Slot> desiredSlots)
         {
+            if (this.participants.ContainsKey(participant))
+            {
+                return;
+            }
             this.participants.Add(participant, desiredSlots);
         }
 
         public void cancel()
         {
             this.cancelled = true;
+        }
+
+        public void open()
+        {
+            this.closed = false;
+            this.cancelled = false;
         }
 
         public void close()
@@ -182,8 +234,6 @@ namespace MeetingsScheduleV2
 
             foreach (Slot slot in interestingSlots.Keys)
             {
-                // get all free rooms in the date of the slot
-                // TODO: not working well
                 List<Room> freeRooms = this.roomsManager.getFreeRoomsIn(slot);
                 //get the room with highest capacity
                 int capacity = -1;
@@ -222,13 +272,11 @@ namespace MeetingsScheduleV2
                 return;
             }
 
-            // if number of participants is higher than the room capacity, 
-            // exclude some of them, policy is not decided yet TODO
             if (this.finalParticipants.Count > this.selectedRoom.getCapacity())
             {
                 this.finalParticipants = this.finalParticipants.GetRange(0, this.selectedRoom.getCapacity());
             }
-            
+
             this.closed = true;
 
         }
@@ -243,6 +291,17 @@ namespace MeetingsScheduleV2
             {
                 return this.invitees.Contains(client);
             }
+        }
+
+        public Room getSelectedRoom()
+        {
+            return this.selectedRoom;
+        }
+
+        public override bool Equals(object obj)
+        {
+            MeetingProposal proposal = (MeetingProposal)obj;
+            return proposal.getTopic() == this.getTopic();
         }
 
     }
@@ -320,13 +379,12 @@ namespace MeetingsScheduleV2
 
     public interface ClientInterface
     {
-        void addMeeting(MeetingProposal proposal);
-        MeetingProposal GetMeeting(string topic);
         void listMeetings(List<MeetingProposal> meetings);
-        void crash();
         int status();
-        void unfreeze();
-        void freeze();
+
+        // Gossiping
+        int push(MeetingProposal meeting, string node);
+        int pull(MeetingProposal meeting);
     }
 
     public interface ServerInterface
@@ -337,12 +395,19 @@ namespace MeetingsScheduleV2
         int execute(CloseCommand command);
         int execute(WaitCommand command);
         int execute(NotFoundCommand command);
+        List<string> suggestClientsForGossip(MeetingProposal meeting);
 
         void addRoom(Room room);
         void crash();
         int status();
         void unfreeze();
         void freeze();
+
+        // Gossiping
+        void addClient(string client);
+        string getRandomClient();
+        // int push(Command command, string node);
+        // int pull(Command command);
     }
 
     public interface PuppetMasterInterface
@@ -424,10 +489,12 @@ namespace MeetingsScheduleV2
     }
 
     [Serializable]
-    public abstract class Command
+    public abstract class Command: IComparable
     {
         private string issuerId;
         private bool sentByClient;
+        private DateTime timestamp;
+        private int sequenceNumber;
 
         public Command()
         {
@@ -451,6 +518,43 @@ namespace MeetingsScheduleV2
         public bool isSentByClient()
         {
             return this.sentByClient;
+        }
+
+        public void setSequenceNumber(int sequenceNumber)
+        {
+            this.sequenceNumber = sequenceNumber;
+        }
+
+        public int getSequenceNumber()
+        {
+            return this.sequenceNumber;
+        }
+
+        public void setTimestamp(DateTime timestamp)
+        {
+            this.timestamp = timestamp;
+        }
+
+        public DateTime getTimestamp()
+        {
+            return this.timestamp;
+        }
+
+        public string commandId()
+        {
+            return this.getType() + "-" + this.getIssuerId() + "-" + this.getSequenceNumber();
+        }
+
+        public int CompareTo(Object obj)
+        {
+            Command command = (Command)obj;
+            return command.getSequenceNumber() - this.getSequenceNumber();
+        }
+
+        public override bool Equals(Object obj)
+        {
+            Command command = (Command)obj;
+            return this.issuerId == command.getIssuerId() && this.sequenceNumber == command.getSequenceNumber();
         }
 
         public abstract string getType();

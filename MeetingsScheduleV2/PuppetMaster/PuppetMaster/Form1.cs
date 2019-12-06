@@ -70,7 +70,13 @@ namespace MeetingsScheduleV2
                 string client_url = instructionParts[2];
                 string server_url = instructionParts[3];
                 string script = instructionParts[4];
-                string args = username + " " + client_url + " " + server_url + " " + script;
+
+                string steps = "";
+                if (instructionParts.Length == 6)
+                {
+                    steps = " " + instructionParts[5];
+                }
+                string args = username + " " + client_url + " " + server_url + " " + script + steps;
                 Process.Start(@"Client.exe", args);
                 // To change 
                 // Process.Start(@"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV2\Client.exe", args);
@@ -111,7 +117,7 @@ namespace MeetingsScheduleV2
                                 this.results.Items.Add("Alive");
                             }
                         }
-                        catch (SocketException e)
+                        catch (SocketException)
                         {
                             this.results.Items.Add("Dead");
                         }
@@ -129,7 +135,7 @@ namespace MeetingsScheduleV2
                                 this.results.Items.Add("Alive");
                             }
                         }
-                        catch (SocketException e)
+                        catch (SocketException)
                         {
                             this.results.Items.Add("Dead");
                         }
@@ -149,24 +155,15 @@ namespace MeetingsScheduleV2
                         server.crash();
                         this.results.Items.Add(node + " crashed");
                     }
-                    catch (SocketException e)
+                    catch (SocketException)
                     {
                         this.results.Items.Add(node + " Dead");
                     }
 
                 }
-                if (node.EndsWith("ClientObject"))
+                else
                 {
-                    try
-                    {
-                        ClientInterface client = (ClientInterface)Activator.GetObject(typeof(ClientInterface), node);
-                        client.crash();
-                        this.results.Items.Add(node + "crashed");
-                    }
-                    catch (SocketException e)
-                    {
-                        this.results.Items.Add(node + " Dead");
-                    }
+                    Console.WriteLine("ERROR: not a server");
                 }
             }
             else if (instructionParts[0] == "Freeze")

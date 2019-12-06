@@ -57,9 +57,9 @@
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(163, 132);
+            this.button1.Location = new System.Drawing.Point(157, 132);
             this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(262, 57);
+            this.button1.Size = new System.Drawing.Size(211, 57);
             this.button1.TabIndex = 2;
             this.button1.Text = "execute";
             this.button1.UseVisualStyleBackColor = true;
@@ -68,7 +68,7 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(29, 182);
+            this.label2.Location = new System.Drawing.Point(29, 213);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(44, 17);
             this.label2.TabIndex = 4;
@@ -76,16 +76,16 @@
             // 
             // script
             // 
-            this.script.Location = new System.Drawing.Point(32, 215);
+            this.script.Location = new System.Drawing.Point(31, 233);
             this.script.Name = "script";
             this.script.Size = new System.Drawing.Size(526, 22);
             this.script.TabIndex = 3;
             // 
             // button2
             // 
-            this.button2.Location = new System.Drawing.Point(163, 243);
+            this.button2.Location = new System.Drawing.Point(157, 266);
             this.button2.Name = "button2";
-            this.button2.Size = new System.Drawing.Size(262, 57);
+            this.button2.Size = new System.Drawing.Size(211, 57);
             this.button2.TabIndex = 5;
             this.button2.Text = "execute script";
             this.button2.UseVisualStyleBackColor = true;
