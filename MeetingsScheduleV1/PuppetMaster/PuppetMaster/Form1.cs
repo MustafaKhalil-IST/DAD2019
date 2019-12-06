@@ -18,6 +18,8 @@ namespace MeetingsSchedule
     public partial class PuppetMaster : Form
     {
         private List<string> nodes;
+        private Dictionary<string, string> idUrl = new Dictionary<string, string>();
+        
         public PuppetMaster()
         {
             InitializeComponent();
@@ -60,6 +62,7 @@ namespace MeetingsSchedule
                 // To change 
                 // Process.Start(@"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV1\Server.exe");
                 this.nodes.Add(url);
+                this.idUrl[id] = url;
                 this.results.Items.Add("Server added\n");
             }
             else if (instructionParts[0] == "Client")
@@ -73,6 +76,7 @@ namespace MeetingsSchedule
                 // To change 
                 // Process.Start(@"C:\Users\cash\MEIC\Development of Distributed Systems\DAD2019\MeetingsScheduleV1\Client.exe", args);
                 this.nodes.Add(url);
+                this.idUrl[username] = url;
                 this.results.Items.Add("Client added\n");
             }
             else if (instructionParts[0] == "AddRoom")
@@ -128,40 +132,28 @@ namespace MeetingsSchedule
             {
                 string node = instructionParts[1];
                 this.results.Items.Add("Crashing " + node);
-                if(node.EndsWith("ServerObject"))
-                    {
-                        try{
-                            ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), node);
-                            server.crash();
-                            this.results.Items.Add(node + " crashed");
-                        }
-                        catch(SocketException e){
-                            this.results.Items.Add(node + " Dead");
-                        }
-                        
-                    }
-                    if(node.EndsWith("ClientObject"))
-                    {
-                        try{
-                            ClientInterface client = (ClientInterface)Activator.GetObject(typeof(ClientInterface), node);
-                            client.crash();
-                            this.results.Items.Add(node + "crashed");
-                        }
-                        catch(SocketException e){
-                            this.results.Items.Add(node + " Dead");
-                        }
-                    }
+
+                try
+                {
+                    ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), this.idUrl[node]);
+                    server.crash();
+                    this.results.Items.Add(node + " crashed");
+                }
+                catch (SocketException e)
+                {
+                    this.results.Items.Add(node + " Dead");
+                }
             }
             else if (instructionParts[0] == "Freeze")
             {
                 string node = instructionParts[1];
-                ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), node);
+                ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), this.idUrl[node]);
                 server.freeze();
             }
             else if (instructionParts[0] == "Unfreeze")
             {
                 string node = instructionParts[1];
-                ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), node);
+                ServerInterface server = (ServerInterface)Activator.GetObject(typeof(ServerInterface), this.idUrl[node]);
                 server.unfreeze();
             }
             else if (instructionParts[0] == "Wait")
